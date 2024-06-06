@@ -2,7 +2,6 @@
 #pragma once
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/platform.hpp"
-#include "../shared_resources/include/threadpool.hpp"
 #include <string>
 class Client {
 
@@ -20,10 +19,8 @@ private:
   std::string ip;
 
   int port, client_sockfd;
-
+  uint32_t seq_num, ack_num = 0;
   struct sockaddr_in srv_addr, clt_addr;
-
-  std::shared_ptr<ThreadPool> threadPool;
 
   unsigned char session_key[16];
 

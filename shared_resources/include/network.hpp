@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <chrono> // for timeouts
 #include <cstdint>
+#include <memory>
 #include <netinet/in.h>
 #include <netinet/ip.h>  // For iphdr
 #include <netinet/tcp.h> // For tcphdr
@@ -14,21 +15,32 @@
 namespace Network {
 #define DATAGRAM_SIZE 1460
 #define OPT_SIZE 32
+// pseudo header needed for tcp header checksum calculation
+struct pseudo_header {
+  u_int32_t src_addr;
+  u_int32_t dst_addr;
+  u_int8_t placeholder;
+  u_int8_t protocol;
+  u_int16_t tcp_length;
+};
 
 /*------------------- PACKET TYPES CONSTRUCTION -----------------------*/
 // Create connection request packet
 void create_syn_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
-                       unsigned char **packet, int *packet_size);
+                       std::unique_ptr<unsigned char[]> &packet,
+                       int *packet_size);
 //----------------------------------------------------------------------|
 // Create ACK packet
 void create_ack_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
-                       int32_t seq, int32_t ack_seq, unsigned char **packet,
+                       int32_t seq, int32_t ack_seq,
+                       std::unique_ptr<unsigned char[]> &packet,
                        int *packet_size);
 //----------------------------------------------------------------------|
 // Create data packet
 void create_data_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
                         int32_t seq, int32_t ack_seq, const std::string &data,
-                        unsigned char **packet, int *packet_size);
+                        std::unique_ptr<unsigned char[]> &packet,
+                        int *packet_size);
 /*--------------------------------------------------------------------*/
 
 /*----------------  BASIC COMMUNICATEES INITIALIZATION  --------------*/
@@ -49,8 +61,9 @@ bool bind_to_port(int port, int &server_sockfd,
 
 /*--------------------  COMMUNICATION INTERFACE ----------------------*/
 // Read ip, tcp headers, checksum etc.
-void parse_packet(unsigned char *packet, struct sockaddr_in &client_addr,
-                  uint32_t *seq, uint32_t *ack);
+void parse_packet(std::unique_ptr<unsigned char[]> packet,
+                  struct sockaddr_in &source_addr, uint32_t *seq,
+                  uint32_t *ack);
 //----------------------------------------------------------------------|
 // Calculate checksum of packet
 unsigned short checksum(void *buffer, unsigned len);
@@ -64,12 +77,12 @@ bool listen_client(int &server_sockfd, int numcl,
 // Send SYN signal and listen for SYN ACK
 bool connect_to_server(int &client_sockfd, struct sockaddr_in &client_addr,
                        struct sockaddr_in &server_addr, const char *ip,
-                       int port);
+                       int port, uint32_t *seq_num, uint32_t *ack_num);
 //---------------------------------------------------------------------|
 // Accept pending connection request
 // Respond to SYN with SYN ACK
-int accept_connection(int &server_sockfd, struct sockaddr_in server_addr,
-                      struct sockaddr_in client_addr);
+int accept_connection(int &server_sockfd, struct sockaddr_in &server_addr,
+                      struct sockaddr_in &client_addr);
 //---------------------------------------------------------------------|
 // Send raw packet with some logging if exception
 ssize_t send_packet(int sockfd, void *packet, size_t packet_len,

@@ -1,5 +1,6 @@
 #include "client.hpp"
 #include "../shared_resources/include/network.hpp"
+#include <memory>
 
 Client::Client(const std::string ip, const int port)
     : ip(std::move(ip)), port(port) {}
@@ -11,38 +12,26 @@ void Client::connect() {
   if (!Network::create_client_socket(this->client_sockfd))
     return;
   // connect client socket to server
-  if (!Network::connect_to_server(client_sockfd, srv_addr, this->ip.c_str(),
-                                  this->port))
+  if (!Network::connect_to_server(client_sockfd, clt_addr, srv_addr,
+                                  this->ip.c_str(), this->port, &seq_num,
+                                  &ack_num))
     return;
   setuid(getuid()); // no need in sudo privileges anymore
   return;
 }
 
 void Client::send_request(const std::string &data) {
-  unsigned char *packet;
+  std::unique_ptr<unsigned char[]> packet;
   int packet_size{0};
-  Network::create_data_packet(&this->clt_addr, &srv_addr, data, &packet,
-                              &packet_size);
-  Network::send_raw_packet(client_sockfd, packet, packet_size, &srv_addr);
+  Network::create_data_packet(&clt_addr, &srv_addr, seq_num, ack_num, data,
+                              packet, &packet_size);
+  Network::send_packet(client_sockfd, &packet, packet_size, &srv_addr);
 }
 
 void Client::receive_response(std::string &data) {
-  unsigned char buffer[1024];
-  ssize_t data_size =
-      recvfrom(client_sockfd, buffer, sizeof(buffer), 0, NULL, NULL);
-  if (data_size < 0) {
-    std::cerr << "Error receiving packet" << std::endl;
-    return;
-  }
+  std::unique_ptr<unsigned char[]> response;
+  Network::receive_packet(this->client_sockfd, &response, DATAGRAM_SIZE);
 
-  struct iphdr *iph = reinterpret_cast<struct iphdr *>(buffer);
-  struct tcphdr *tcph =
-      reinterpret_cast<struct tcphdr *>(buffer + iph->ihl * 4);
-
-  if (tcph->dest == htons(port)) {
-    data.assign(reinterpret_cast<char *>(tcph + 1),
-                data_size - sizeof(struct iphdr) - sizeof(struct tcphdr));
-  }
-
+  Network::parse_packet(std::move(response), srv_addr, &seq_num, &ack_num);
   // TODO: strip data and log into console
 }
