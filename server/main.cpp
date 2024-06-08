@@ -15,9 +15,15 @@ int main(int argc, char *argv[]) {
   srv->launch();
 
   if (srv->accept()) {
-    std::string msg;
-    srv->receive_request(msg);
-    std::cout << "message: " << msg;
+    for (;;) {
+      std::string req;
+      srv->receive_request(req);
+      std::cout << "message: " << req;
+      std::string resp;
+      std::cout << "\nresponse: ";
+      std::cin >> resp;
+      srv->send_response(resp);
+    }
   }
   srv->~Server();
   delete srv;

@@ -18,7 +18,7 @@ public:
 private:
   std::string ip;
 
-  int server_sockfd, port, communication_sockfd;
+  int server_sockfd, port;
 
   uint32_t seq_num, ack_num = 0;
 

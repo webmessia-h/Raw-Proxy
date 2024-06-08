@@ -9,7 +9,7 @@ public:
   Client(const std::string s_ip, const std::string ip, const int port);
   ~Client();
 
-  void connect();
+  bool connect();
   // TODO: maybe implement some authentication
   //  so the proxy ain't meaningless
   void send_request(const std::string &data);

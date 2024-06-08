@@ -8,10 +8,7 @@
 Server::Server(const std::string ip, const int port)
     : ip(std::move(ip)), port(port) {}
 
-Server::~Server() {
-  Network::close_socket(this->server_sockfd);
-  Network::close_socket(this->communication_sockfd);
-}
+Server::~Server() { Network::close_socket(this->server_sockfd); }
 
 // Initialize and set-up the server
 void Server::launch() {
@@ -20,6 +17,7 @@ void Server::launch() {
       !Network::bind_to_port(this->port, this->server_sockfd, this->srv_addr)) {
     return;
   }
+  setuid(getuid()); // no need in sudo privileges anymore
   return;
 }
 
@@ -29,31 +27,25 @@ bool Server::accept() {
       !Network::accept_connection(server_sockfd, srv_addr, clt_addr)) {
     return false;
   }
-  // setuid(getuid()); // no need in sudo privileges anymore
   return true;
 }
 
 void Server::receive_request(std::string &data) {
-  std::unique_ptr<unsigned char[]> request;
+  auto request = std::make_unique<unsigned char[]>(DATAGRAM_SIZE);
   ssize_t packet_size{0};
+  packet_size += Network::receive_packet(server_sockfd, request.get(),
+                                         DATAGRAM_SIZE, srv_addr);
 
-  packet_size +=
-      Network::receive_packet(server_sockfd, &request, DATAGRAM_SIZE, srv_addr);
-  struct iphdr *iph = reinterpret_cast<struct iphdr *>(&request);
-
-  struct tcphdr *tcph =
-      reinterpret_cast<struct tcphdr *>(request.get() + iph->ihl * 4);
-
-  if (tcph->dest == htons(port)) {
-    data.assign(reinterpret_cast<char *>(tcph + 1),
-                packet_size - sizeof(struct iphdr) - sizeof(struct tcphdr));
-    std::cout << "I'M ALIVE!!!!" << std::endl;
-  }
-
+  Network::parse_packet(request, &seq_num, &ack_num, clt_addr);
+  data.assign(reinterpret_cast<const char *>(request.get()));
   // TODO: perform checksum comparation and log into console
 }
 
 void Server::send_response(const std::string &data) {
+  /* TODO: idk if it belogs here*/
+  if (this->seq_num != 0)
+    this->seq_num++;
+  /*---------------------------*/
   std::unique_ptr<unsigned char[]> packet;
   int packet_size{0};
   Network::create_data_packet(&srv_addr, &clt_addr, seq_num, ack_num, data,

@@ -13,14 +13,16 @@ int main(int argc, char *argv[]) {
 
   Client *cl = new Client(s_ip, ip, port);
 
-  cl->connect();
+  if (cl->connect()) {
+    for (;;) {
+      std::string msg;
+      std::cout << "Message for server: ";
+      std::cin >> msg;
 
-  std::string msg;
-  std::cout << "Message for server: ";
-  std::cin >> msg;
-
-  cl->send_request(msg);
-  cl->receive_response();
+      cl->send_request(msg);
+      cl->receive_response();
+    }
+  }
 
   cl->~Client();
   delete cl;

@@ -15,7 +15,8 @@
 
 namespace Network {
 #define DATAGRAM_SIZE 1460
-#define OPT_SIZE 32
+#define REQUEST_SIZE (sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE)
+#define OPT_SIZE 20
 // pseudo header needed for tcp header checksum calculation
 struct pseudo_header {
   u_int32_t src_addr;
@@ -57,14 +58,13 @@ int create_client_socket(int &client_sockfd, struct sockaddr_in &client_addr,
                          const char *ip);
 //---------------------------------------------------------------------|
 // Bind server's socket
-bool bind_to_port(int port, int &server_sockfd,
-                  struct sockaddr_in &server_addr);
+bool bind_to_port(int port, int &sockfd, struct sockaddr_in &addr);
 /*--------------------------------------------------------------------*/
 
 /*--------------------  COMMUNICATION INTERFACE ----------------------*/
-// Read ip, tcp headers, checksum etc.
-void parse_packet(unsigned char *packet, uint32_t *seq, uint32_t *ack,
-                  struct sockaddr_in &source);
+// Read ip, tcp headers, checksum etc. // TODO: accept unique_ptr
+void parse_packet(std::unique_ptr<unsigned char[]> &packet, uint32_t *seq,
+                  uint32_t *ack, struct sockaddr_in &source);
 //----------------------------------------------------------------------|
 // Calculate checksum of packet
 unsigned short checksum(void *buffer, unsigned len);
