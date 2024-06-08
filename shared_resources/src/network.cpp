@@ -1,12 +1,12 @@
 #include "../include/network.hpp"
 
+#include <arpa/inet.h>
 #include <cerrno>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <optional>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -14,9 +14,10 @@
 #include <unistd.h>
 
 // Create connection request (SYN) packet
-void create_syn_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
-                       std::unique_ptr<unsigned char[]> &packet,
-                       int *packet_size) {
+void Network::create_syn_packet(struct sockaddr_in *src,
+                                struct sockaddr_in *dst,
+                                std::unique_ptr<unsigned char[]> &packet,
+                                int *packet_size) {
   // TODO: check memory operations
   size_t datagram_size =
       sizeof(struct iphdr) + sizeof(struct tcphdr) + DATAGRAM_SIZE;
@@ -58,14 +59,17 @@ void create_syn_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
   tcph->urg_ptr = 0;
 
   // TCP options
-  // ---- set mss ----
-  datagram[40] = 0x02;
-  datagram[41] = 0x04;
-  int16_t mss = htons(48); // mss value
-  memcpy(datagram.get() + 42, &mss, sizeof(int16_t));
-  // ---- enable SACK ----
-  datagram[44] = 0x04;
-  datagram[45] = 0x02;
+  datagram[sizeof(struct iphdr) + sizeof(struct tcphdr)] =
+      0x02; // MSS Option Kind
+  datagram[sizeof(struct iphdr) + sizeof(struct tcphdr) + 1] =
+      0x04;                 // MSS Option Length
+  int16_t mss = htons(512); // MSS Value, convert to network byte order
+  memcpy(datagram.get() + sizeof(struct iphdr) + sizeof(struct tcphdr) + 2,
+         &mss, sizeof(int16_t)); // Copy MSS value to datagram
+  datagram[sizeof(struct iphdr) + sizeof(struct tcphdr) + 4] =
+      0x04; // SACK Permitted Option Kind
+  datagram[sizeof(struct iphdr) + sizeof(struct tcphdr) + 5] =
+      0x02; // SACK Permitted Option Length
 
   // calculate ip checksum
   iph->check = Network::checksum(reinterpret_cast<unsigned short *>(iph),
@@ -93,10 +97,11 @@ void create_syn_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
 }
 
 // Create ACK packet
-void create_ack_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
-                       int32_t seq, int32_t ack_seq,
-                       std::unique_ptr<unsigned char[]> &packet,
-                       int *packet_size) {
+void Network::create_ack_packet(struct sockaddr_in *src,
+                                struct sockaddr_in *dst, uint32_t seq,
+                                uint32_t ack_seq,
+                                std::unique_ptr<unsigned char[]> &packet,
+                                int *packet_size) {
   // TODO: check memory operations
   size_t datagram_size =
       sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE;
@@ -164,8 +169,8 @@ void create_ack_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
 
 // Create a data-filled packet
 void Network::create_data_packet(struct sockaddr_in *src,
-                                 struct sockaddr_in *dst, int32_t seq,
-                                 int32_t ack_seq, const std::string &data,
+                                 struct sockaddr_in *dst, uint32_t seq,
+                                 uint32_t ack_seq, const std::string &data,
                                  std::unique_ptr<unsigned char[]> &packet,
                                  int *packet_size) {
   // TODO: check memory operations
@@ -245,7 +250,8 @@ void Network::create_data_packet(struct sockaddr_in *src,
 int Network::create_socket(int domain, int type, int protocol) {
   int sockfd = socket(domain, type, protocol);
   if (sockfd < 0) {
-    std::cerr << "Error: Failed to create socket" << std::endl;
+    std::cerr << "Error: Failed to create socket" << strerror(errno)
+              << std::endl;
     close_socket(sockfd);
     return -1;
   }
@@ -259,7 +265,7 @@ bool Network::create_server_socket(int &server_sockfd,
 
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = INADDR_ANY;
+  server_addr.sin_addr.s_addr = inet_addr(ip);
   server_addr.sin_port = htons(port);
   if (server_sockfd > 0) {
     Network::close_socket(server_sockfd);
@@ -272,11 +278,29 @@ bool Network::create_server_socket(int &server_sockfd,
     Network::close_socket(server_sockfd);
     return false;
   }
+  // tell the kernel that headers are included in the packet
+  int one = 1;
+  const int *val = &one;
+  if (setsockopt(server_sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) ==
+      -1) {
+    printf("setsockopt(IP_HDRINCL, 1) failed\n");
+    return -1;
+  }
+  std::cout << "Self adress: " << ip << "\t" << port << std::endl;
   return true;
 }
 
-// Create client and set server adress struct
-int Network::create_client_socket(int &client_sockfd) {
+// Create client socket
+int Network::create_client_socket(int &client_sockfd,
+                                  struct sockaddr_in &client_addr,
+                                  const char *ip) {
+  memset(&client_addr, 0, sizeof(client_addr));
+  client_addr.sin_family = AF_INET;
+  srand(time(nullptr));
+  client_addr.sin_addr.s_addr = inet_addr(ip);
+  client_addr.sin_port = htons(rand() % 65535);
+  std::cout << "Self adress: " << ip << "\t" << client_addr.sin_port
+            << std::endl;
   if (client_sockfd != 0) {
     close_socket(client_sockfd);
   }
@@ -284,6 +308,17 @@ int Network::create_client_socket(int &client_sockfd) {
   if (client_sockfd < 0) {
     std::cerr << "Error: Failed to create client socket " << strerror(errno)
               << std::endl;
+    return -1;
+  }
+  // Bind the client socket to a local address
+  bind_to_port(client_addr.sin_port, client_sockfd, client_addr);
+  // tell the kernel that headers are included in the packet
+  int one = 1;
+  const int *val = &one;
+  if (setsockopt(client_sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) ==
+      -1) {
+    printf("setsockopt(IP_HDRINCL, 1) failed\n");
+    return -1;
   }
   return client_sockfd;
 }
@@ -305,7 +340,6 @@ bool Network::bind_to_port(int port, int &server_sockfd,
       throw std::runtime_error(std::string("Error: Failed to bind: ") +
                                strerror(errno));
     }
-    std::cout << "Server started on port: " << port << std::endl;
     return true;
   } catch (const std::exception &ex) {
     std::cerr << ex.what() << std::endl;
@@ -314,25 +348,30 @@ bool Network::bind_to_port(int port, int &server_sockfd,
   }
 }
 
-void parse_packet(std::unique_ptr<unsigned char[]> packet, uint32_t *seq,
-                  uint32_t *ack, std::optional<struct sockaddr_in> &source) {
-  struct iphdr *iph = reinterpret_cast<struct iphdr *>(&packet);
+void Network::parse_packet(unsigned char *packet, uint32_t *seq, uint32_t *ack,
+                           struct sockaddr_in &source) {
+  struct iphdr *iph = reinterpret_cast<struct iphdr *>(packet);
   unsigned short iphdrlen = iph->ihl * 4;
 
-  struct tcphdr *tcph =
-      reinterpret_cast<struct tcphdr *>(packet.get() + iphdrlen);
-  if (source) {
-    // read source ip address
-    source->sin_addr.s_addr = iph->saddr;
-    // read source port
-    source->sin_port = tcph->source;
-  }
+  struct tcphdr *tcph = reinterpret_cast<struct tcphdr *>(packet + iphdrlen);
+  // read source port
+  source.sin_port = tcph->source;
+  // read source ip if present
+  source.sin_family = iph->version;
+  source.sin_addr.s_addr = iph->saddr;
+
+  std::cout << "source address: " << ntohs(iph->saddr) << " "
+            << ntohs(tcph->source) << std::endl;
+
   // read sequence number
   uint32_t seq_num = tcph->seq;
   // read acknowledgement number
   uint32_t ack_num = tcph->ack_seq;
+  // check if it's SYN
+  bool syn = tcph->syn;
   *seq = ntohl(seq_num);
   *ack = ntohl(ack_num);
+  std::cout << "syn: " << syn << std::endl;
   std::cout << "seq_num: " << *seq << std::endl;
   std::cout << "ack_num: " << *ack << std::endl;
 }
@@ -359,30 +398,27 @@ bool Network::listen_client(int &server_sockfd, int numcl,
                             struct sockaddr_in &server_addr,
                             struct sockaddr_in &client_addr) {
   std::cout << "Listening for incoming connection..." << std::endl;
-  std::unique_ptr<unsigned char[]> syn_req;
+  unsigned char syn_req[DATAGRAM_SIZE];
   uint32_t seq_num, ack_num;
-  // Define the duration for which the loop should run
-  auto duration = std::chrono::minutes(5);
+  // TODO: Define the duration for which the loop should run
+  auto duration = std::chrono::minutes(2);
   // Get the start time
   auto start_time = std::chrono::steady_clock::now();
   // Calculate the end time
   auto end_time = start_time + duration;
+
   ssize_t bytes_recv = 0;
   while (std::chrono::steady_clock::now() < end_time) {
-    bytes_recv += receive_packet(server_sockfd, &syn_req, DATAGRAM_SIZE);
+    bytes_recv +=
+        receive_packet(server_sockfd, &syn_req, DATAGRAM_SIZE, server_addr);
     if (bytes_recv > 0)
       break;
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
-  // Read ip,tcp headers to acknowledge client
-  if (bytes_recv > 0) {
-    std::cout << "Received SYN" << std::endl;
-    Network::parse_packet(std::move(syn_req), client_addr, &seq_num, &ack_num);
-    return true;
-  } else {
-    std::cout << "Client connection timeout" << std::endl;
-    return false;
-  }
+  std::cout << "Received SYN" << std::endl;
+  // Parse packet to acknowledge client adress
+  Network::parse_packet(syn_req, &seq_num, &ack_num, client_addr);
+  return true;
 }
 
 // Make connection request
@@ -395,39 +431,42 @@ bool Network::connect_to_server(int &client_sockfd,
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(port);
-  if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
-    std::cerr << "Error: Invalid address: " << ip << std::endl;
-    close_socket(client_sockfd);
-    return false;
+  if (inet_pton(AF_INET, ip, &server_addr.sin_addr) != 1) {
+    std::cout << "destination IP configuration failed\n";
+    return -1;
   }
+  std::cout << "Connection adress: " << ip << "\t" << port << std::endl;
   // Try to connect to server
   // send SYN until received SYN-ACK or TIMEOUT
   int wait_duration = 5; // in seconds
   std::unique_ptr<unsigned char[]> packet;
-  std::unique_ptr<unsigned char[]> response;
+  unsigned char *response;
   int packet_size;
   Network::create_syn_packet(&client_addr, &server_addr, packet, &packet_size);
   while (true) {
-    std::this_thread::sleep_for(std::chrono::seconds(wait_duration));
 
-    Network::send_packet(client_sockfd, &packet, packet_size, &server_addr);
+    Network::send_packet(client_sockfd, packet.get(), packet_size,
+                         &server_addr);
 
-    ssize_t bytes_recv =
-        Network::receive_packet(client_sockfd, &response, sizeof(response));
+    ssize_t bytes_recv = Network::receive_packet(client_sockfd, &response,
+                                                 sizeof(response), client_addr);
 
     if (wait_duration == 120) {
       std::cout << "Connection timeout" << std::endl;
       return false;
     }
     wait_duration += 5;
+    std::this_thread::sleep_for(std::chrono::seconds(wait_duration));
 
     if (bytes_recv > 0) {
       break;
     }
-    Network::parse_packet(std::move(response), server_addr, seq_num, ack_num);
+    std::cout << "Received SYN" << std::endl;
+    Network::parse_packet(response, seq_num, ack_num, server_addr);
+    return true;
   }
 
-  return true;
+  return false;
 }
 
 // Accept incoming connections
@@ -439,28 +478,43 @@ int Network::accept_connection(int &server_sockfd,
   int packet_size{0};
   Network::create_ack_packet(&server_addr, &client_addr, 0, 1, packet,
                              &packet_size);
-  Network::send_packet(server_sockfd, &packet, packet_size, &client_addr);
+  Network::send_packet(server_sockfd, packet.get(), packet_size, &client_addr);
   std::cout << "Sent SYN-ACK" << std::endl;
   return 0;
 }
 
 ssize_t Network::send_packet(int sockfd, void *packet, size_t packet_len,
-                             struct sockaddr_in *dest_addr) {
-  ssize_t bytes_sent =
-      sendto(sockfd, packet, packet_len, 0, (struct sockaddr *)dest_addr,
-             sizeof(struct sockaddr_in));
+                             struct sockaddr_in *dest) {
+  ssize_t bytes_sent = sendto(sockfd, packet, packet_len, 0,
+                              reinterpret_cast<struct sockaddr *>(dest),
+                              sizeof(struct sockaddr_in));
   if (bytes_sent < 0) {
-    std::cerr << "Error sending raw packet: " << strerror(errno) << std::endl;
+    std::cerr << "Error sending  packet: " << strerror(errno) << std::endl;
   }
+  // std::cout.write(reinterpret_cast<char *>(packet), packet_len);
   return bytes_sent;
 }
 
-ssize_t Network::receive_packet(int sockfd, void *buffer, size_t buffer_len) {
-  ssize_t bytes_recv = recvfrom(sockfd, buffer, buffer_len, 0, NULL, NULL);
-  if (bytes_recv < 0) {
-    std::cerr << "Error receiving raw packet: " << strerror(errno) << std::endl;
-    return -1;
-  }
+ssize_t Network::receive_packet(int sockfd, void *buffer, size_t buffer_len,
+                                struct sockaddr_in &dest) {
+  struct iphdr *ip_header;
+  struct tcphdr *tcp_header;
+  ssize_t bytes_recv;
+  uint16_t dst_port{0};
+
+  do {
+    bytes_recv = recvfrom(sockfd, buffer, buffer_len, 0, NULL, NULL);
+    if (bytes_recv < 0) {
+      std::cerr << "Error receiving packet: " << strerror(errno) << std::endl;
+      return -1;
+    }
+
+    ip_header = (struct iphdr *)buffer;
+    tcp_header =
+        (struct tcphdr *)(static_cast<char *>(buffer) + (ip_header->ihl * 4));
+    dst_port = ntohs(tcp_header->dest);
+
+  } while (dst_port != ntohs(dest.sin_port));
   return bytes_recv;
 }
 

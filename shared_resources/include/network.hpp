@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>  // For iphdr
 #include <netinet/tcp.h> // For tcphdr
+#include <optional>
 #include <string.h>
 #include <string>
 #include <sys/types.h> // For socket types
@@ -32,13 +33,13 @@ void create_syn_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
 //----------------------------------------------------------------------|
 // Create ACK packet
 void create_ack_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
-                       int32_t seq, int32_t ack_seq,
+                       uint32_t seq, uint32_t ack_seq,
                        std::unique_ptr<unsigned char[]> &packet,
                        int *packet_size);
 //----------------------------------------------------------------------|
 // Create data packet
 void create_data_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
-                        int32_t seq, int32_t ack_seq, const std::string &data,
+                        uint32_t seq, uint32_t ack_seq, const std::string &data,
                         std::unique_ptr<unsigned char[]> &packet,
                         int *packet_size);
 /*--------------------------------------------------------------------*/
@@ -52,7 +53,8 @@ bool create_server_socket(int &server_sockfd, struct sockaddr_in &server_addr,
                           const char *ip, int port);
 //---------------------------------------------------------------------|
 // Initialize client socket
-int create_client_socket(int &client_sockfd);
+int create_client_socket(int &client_sockfd, struct sockaddr_in &client_addr,
+                         const char *ip);
 //---------------------------------------------------------------------|
 // Bind server's socket
 bool bind_to_port(int port, int &server_sockfd,
@@ -61,9 +63,8 @@ bool bind_to_port(int port, int &server_sockfd,
 
 /*--------------------  COMMUNICATION INTERFACE ----------------------*/
 // Read ip, tcp headers, checksum etc.
-void parse_packet(std::unique_ptr<unsigned char[]> packet,
-                  struct sockaddr_in &source_addr, uint32_t *seq,
-                  uint32_t *ack);
+void parse_packet(unsigned char *packet, uint32_t *seq, uint32_t *ack,
+                  struct sockaddr_in &source);
 //----------------------------------------------------------------------|
 // Calculate checksum of packet
 unsigned short checksum(void *buffer, unsigned len);
@@ -89,7 +90,8 @@ ssize_t send_packet(int sockfd, void *packet, size_t packet_len,
                     struct sockaddr_in *dest_addr);
 //---------------------------------------------------------------------|
 // Receive raw packet with some logging if exception
-ssize_t receive_packet(int sockfd, void *buffer, size_t buffer_len);
+ssize_t receive_packet(int sockfd, void *buffer, size_t buffer_len,
+                       struct sockaddr_in &dest_addr);
 //---------------------------------------------------------------------|
 // Close socket
 void close_socket(int socket_fd);

@@ -1,21 +1,27 @@
 #include "client.hpp"
 
 int main(int argc, char *argv[]) {
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << "<server_ip> <port_number>"
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0] << "<self_ip> <server_ip> <server_port>"
               << std::endl;
     return 1;
   }
 
-  const std::string ip = argv[1];
-  int port = std::stoi(argv[2]);
+  const std::string s_ip = argv[1];
+  const std::string ip = argv[2];
+  int port = std::stoi(argv[3]);
 
-  Client *cl = new Client(ip, port);
+  Client *cl = new Client(s_ip, ip, port);
+
   cl->connect();
+
   std::string msg;
-  std::cout << "Message for server";
+  std::cout << "Message for server: ";
   std::cin >> msg;
-  cl->encrypt_and_send(msg);
+
+  cl->send_request(msg);
+  cl->receive_response();
+
   cl->~Client();
   delete cl;
   cl = nullptr;

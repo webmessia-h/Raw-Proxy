@@ -6,19 +6,20 @@
 class Client {
 
 public:
-  Client(const std::string ip, const int port);
+  Client(const std::string s_ip, const std::string ip, const int port);
   ~Client();
 
   void connect();
   // TODO: maybe implement some authentication
   //  so the proxy ain't meaningless
   void send_request(const std::string &data);
-  void receive_response(std::string &data);
+  void receive_response();
 
 private:
+  std::string self_ip;
   std::string ip;
 
-  int port, client_sockfd;
+  int client_sockfd, port;
   uint32_t seq_num, ack_num = 0;
   struct sockaddr_in srv_addr, clt_addr;
 

@@ -1,5 +1,4 @@
 #include "server.hpp"
-#include <iostream>
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
@@ -17,7 +16,7 @@ int main(int argc, char *argv[]) {
 
   if (srv->accept()) {
     std::string msg;
-    srv->decrypt_and_receive(msg);
+    srv->receive_request(msg);
     std::cout << "message: " << msg;
   }
   srv->~Server();
