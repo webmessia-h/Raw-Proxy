@@ -1,8 +1,8 @@
 #include "client.hpp"
-
 int main(int argc, char *argv[]) {
+
   if (argc != 4) {
-    std::cerr << "Usage: " << argv[0] << "<self_ip> <server_ip> <server_port>"
+    std::cerr << "Usage: " << argv[0] << "<self_ip> <proxy_ip> <proxy_port>"
               << std::endl;
     return 1;
   }
@@ -16,11 +16,13 @@ int main(int argc, char *argv[]) {
   if (cl->connect()) {
     for (;;) {
       std::string msg;
-      std::cout << "Message for server: ";
-      std::cin >> msg;
-
+      std::cout << "\nMessage for server: ";
+      std::getline(std::cin, msg);
       cl->send_request(msg);
-      cl->receive_response();
+
+      std::string resp;
+      cl->receive_response(resp);
+      std::cout << "\nresponse: " << resp;
     }
   }
 

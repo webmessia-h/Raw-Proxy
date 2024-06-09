@@ -33,14 +33,11 @@ void Client::send_request(const std::string &data) {
   Network::send_packet(client_sockfd, packet.get(), packet_size, &srv_addr);
 }
 
-void Client::receive_response() {
-  std::cout << "into receive response\n";
+void Client::receive_response(std::string &data) {
   auto response = std::make_unique<unsigned char[]>(DATAGRAM_SIZE);
   Network::receive_packet(client_sockfd, response.get(), DATAGRAM_SIZE,
                           clt_addr);
 
   Network::parse_packet(response, &seq_num, &ack_num, srv_addr);
-  std::cout.write(reinterpret_cast<const char *>(response.get()),
-                  strlen(reinterpret_cast<const char *>(response.get())));
-  // TODO: strip data and log into console
+  data.assign(reinterpret_cast<const char *>(response.get()));
 }

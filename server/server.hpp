@@ -12,6 +12,7 @@ public:
 
   void launch();
   bool accept();
+  // TODO: make send/recv smarter
   void send_response(const std::string &data);
   void receive_request(std::string &data);
 

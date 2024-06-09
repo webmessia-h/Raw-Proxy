@@ -314,10 +314,11 @@ int Network::create_client_socket(int &client_sockfd,
   client_addr.sin_family = AF_INET;
   client_addr.sin_addr.s_addr = inet_addr(ip);
   srand(time(nullptr));
-  client_addr.sin_port = htons(rand() % 65535);
+  int port = rand() % 65535;
+  client_addr.sin_port = htons(port);
 
-  std::cout << "Self adress: " << ip << ":" << client_addr.sin_port
-            << std::endl;
+  std::cout << "Self adress: " << ip << ":" << port << std::endl;
+
   if (client_sockfd != 0) {
     close_socket(client_sockfd);
   }
@@ -329,7 +330,7 @@ int Network::create_client_socket(int &client_sockfd,
     return -1;
   }
   // Bind the client socket to a local address
-  bind_to_port(client_addr.sin_port, client_sockfd, client_addr);
+  bind_to_port(port, client_sockfd, client_addr);
   // tell the kernel that headers are included in the packet
   int one = 1;
   const int *val = &one;
@@ -409,6 +410,7 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
 }
 
 unsigned short Network::checksum(void *buffer, unsigned len) {
+  // credits: Addison Wesley: UNIX Network Programming
   unsigned short *buf = (unsigned short *)buffer;
   unsigned int sum = 0;
   unsigned short result;

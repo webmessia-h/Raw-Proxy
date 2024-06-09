@@ -4,6 +4,7 @@
 #include "../shared_resources/include/threadpool.hpp"
 #include <cerrno>
 #include <iostream>
+#include <netinet/in.h>
 
 class Proxy : public Server, public Client {
 public:
@@ -14,13 +15,16 @@ public:
   // TODO: implement handling here,concurrent approach maybe
   void handle_client();
   void handle_server();
+  // Do the funny
+  void cap_packet(std::unique_ptr<unsigned char[]> &packet,
+                  struct sockaddr_in &source);
   // TODO: split this into separate methods
   void relay_data();
 
 private:
   std::string prx_ip, srv_ip;
   int prx_srv_sockfd, prx_clt_sockfd, srv_port, prx_port;
-  struct sockaddr_in srv_addr, clt_addr;
+  struct sockaddr_in srv_addr, clt_addr, prx_addr;
   std::shared_ptr<ThreadPool> threadPool;
   unsigned char session_key[16];
   unsigned char iv[16] = "initialvector11";

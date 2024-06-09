@@ -3,17 +3,17 @@
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/platform.hpp"
 #include <string>
-class Client {
 
+class Client {
 public:
   Client(const std::string s_ip, const std::string ip, const int port);
   ~Client();
 
-  bool connect();
+  virtual bool connect();
   // TODO: maybe implement some authentication
   //  so the proxy ain't meaningless
   void send_request(const std::string &data);
-  void receive_response();
+  void receive_response(std::string &data);
 
 private:
   std::string self_ip;

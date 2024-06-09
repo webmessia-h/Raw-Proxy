@@ -9,8 +9,18 @@ Proxy::Proxy(const std::string &prx_ip, int prx_port, const std::string &srv_ip,
 Proxy::~Proxy() {
   Client::~Client();
   Server::~Server();
+  Network::close_socket(this->prx_clt_sockfd);
+  Network::close_socket(this->prx_srv_sockfd);
 }
 
+// capture packet destined to server, do the funny with packet
+void Proxy::cap_packet(std::unique_ptr<unsigned char[]> &packet,
+                       struct sockaddr_in &source) {
+
+  auto request = std::make_unique<unsigned char[]>(DATAGRAM_SIZE);
+  Network::receive_packet(prx_srv_sockfd, request.get(), DATAGRAM_SIZE,
+                          srv_addr);
+}
 void handle_client() {
   // FIXME: handle client with server's methods
 }
@@ -19,15 +29,5 @@ void handle_server() {
 }
 
 void Proxy::relay_data() {
-  while (true) {
-    // Accept client connection
-    int comm_sockfd =
-        Network::accept_connection(prx_clt_sockfd, srv_addr, clt_addr);
-    if (comm_sockfd < 0) {
-      std::cerr << "Failed to accept client connection" << std::endl;
-      continue;
-    }
-  }
-
   // FIXME: implement changing packet and forwarding
 }

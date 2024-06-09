@@ -15,12 +15,19 @@ int main(int argc, char *argv[]) {
 
   Proxy *prx = new Proxy(prx_ip, prx_port, srv_ip, srv_port);
   prx->launch();
-  prx->accept();
-  prx->connect();
-  prx->relay_data();
-  std::string msg;
-  std::cout << "Message for server";
-  std::cin >> msg;
+
+  if (prx->connect()) {
+    if (prx->accept()) {
+      for (;;) {
+        std::string req;
+        prx->receive_request(req);
+        prx->send_request(req);
+        std::string resp;
+        prx->receive_response(resp);
+        prx->send_response(resp);
+      }
+    }
+  }
   prx->~Proxy();
   delete prx;
   prx = nullptr;
