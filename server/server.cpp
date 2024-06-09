@@ -12,9 +12,9 @@ Server::~Server() { Network::close_socket(this->server_sockfd); }
 
 // Initialize and set-up the server
 void Server::launch() {
-  if (!Network::create_server_socket(server_sockfd, this->srv_addr,
+  if (!Network::create_server_socket(this->server_sockfd, this->srv_addr,
                                      this->ip.c_str(), this->port) ||
-      !Network::bind_to_port(this->port, this->server_sockfd, this->srv_addr)) {
+      !Network::bind_to_port(this->port, server_sockfd, srv_addr)) {
     return;
   }
   setuid(getuid()); // no need in sudo privileges anymore
@@ -23,7 +23,7 @@ void Server::launch() {
 
 // Listen and accept connection
 bool Server::accept() {
-  if (!Network::listen_client(server_sockfd, 1, srv_addr, this->clt_addr) ||
+  if (!Network::listen_client(server_sockfd, 1, srv_addr, clt_addr) ||
       !Network::accept_connection(server_sockfd, srv_addr, clt_addr)) {
     return false;
   }
@@ -49,5 +49,5 @@ void Server::send_response(const std::string &data) {
   int packet_size{0};
   Network::create_data_packet(&srv_addr, &clt_addr, seq_num, ack_num, data,
                               packet, &packet_size);
-  Network::send_packet(server_sockfd, packet.get(), packet_size, &clt_addr);
+  Network::send_packet(server_sockfd, packet.get(), packet_size, clt_addr);
 }

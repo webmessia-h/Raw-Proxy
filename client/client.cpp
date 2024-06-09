@@ -30,7 +30,7 @@ void Client::send_request(const std::string &data) {
   int packet_size{0};
   Network::create_data_packet(&clt_addr, &srv_addr, seq_num, ack_num, data,
                               packet, &packet_size);
-  Network::send_packet(client_sockfd, packet.get(), packet_size, &srv_addr);
+  Network::send_packet(client_sockfd, packet.get(), packet_size, srv_addr);
 }
 
 void Client::receive_response(std::string &data) {

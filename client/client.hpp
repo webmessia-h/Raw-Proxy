@@ -2,6 +2,7 @@
 #pragma once
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/platform.hpp"
+#include <netinet/in.h>
 #include <string>
 
 class Client {
@@ -15,13 +16,17 @@ public:
   void send_request(const std::string &data);
   void receive_response(std::string &data);
 
+protected:
+  int client_sockfd;
+  struct sockaddr_in srv_addr;
+  struct sockaddr_in clt_addr;
+
 private:
   std::string self_ip;
   std::string ip;
+  int port;
 
-  int client_sockfd, port;
   uint32_t seq_num, ack_num = 0;
-  struct sockaddr_in srv_addr, clt_addr;
 
   unsigned char session_key[16];
 

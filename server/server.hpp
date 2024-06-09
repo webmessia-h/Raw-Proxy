@@ -3,6 +3,7 @@
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/threadpool.hpp"
 #include <iostream>
+#include <netinet/in.h>
 #include <string>
 
 class Server {
@@ -14,19 +15,18 @@ public:
   bool accept();
   // TODO: make send/recv smarter
   void send_response(const std::string &data);
-  void receive_request(std::string &data);
+  virtual void receive_request(std::string &data);
+
+protected:
+  int server_sockfd;
+  struct sockaddr_in srv_addr;
 
 private:
   std::string ip;
-
-  int server_sockfd, port;
+  int port;
+  struct sockaddr_in clt_addr;
 
   uint32_t seq_num, ack_num = 0;
 
-  struct sockaddr_in srv_addr, clt_addr;
-
   std::shared_ptr<ThreadPool> threadPool;
-
-  unsigned char session_key[16];
-  unsigned char iv[16] = "initialvector11";
 };

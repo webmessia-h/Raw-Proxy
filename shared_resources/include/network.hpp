@@ -87,7 +87,7 @@ int accept_connection(int &server_sockfd, struct sockaddr_in &server_addr,
 //---------------------------------------------------------------------|
 // Send raw packet with some logging if exception
 ssize_t send_packet(int sockfd, void *packet, size_t packet_len,
-                    struct sockaddr_in *dest_addr);
+                    struct sockaddr_in &dest_addr);
 //---------------------------------------------------------------------|
 // Receive raw packet with some logging if exception
 ssize_t receive_packet(int sockfd, void *buffer, size_t buffer_len,

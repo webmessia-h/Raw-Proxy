@@ -369,41 +369,81 @@ bool Network::bind_to_port(int port, int &sockfd, struct sockaddr_in &addr) {
 void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
                            uint32_t *seq, uint32_t *ack,
                            struct sockaddr_in &source) {
+
+  /*------------------------- READ PACKET -------------------------*/
   struct iphdr *iph = reinterpret_cast<struct iphdr *>(packet.get());
   unsigned short iphdrlen = iph->ihl * 4;
-
   struct tcphdr *tcph =
       reinterpret_cast<struct tcphdr *>(packet.get() + iphdrlen);
   unsigned short tcphdrlen = tcph->doff * 4;
-  // read source port
+
+  // Read source port
   source.sin_port = tcph->source;
-  // read source ip
+  // Read source ip
   source.sin_addr.s_addr = iph->saddr;
   char source_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(source.sin_addr), source_ip, INET_ADDRSTRLEN);
   std::cout << "source address: " << source_ip << ":" << ntohs(tcph->source)
             << std::endl;
-
-  // read sequence number
+  // Read sequence number
   uint32_t seq_num = tcph->seq;
-  // read acknowledgement number
+  // Read acknowledgement number
   uint32_t ack_num = tcph->ack_seq;
-  // check if it's SYN
+  // Check if it's SYN
   bool syn = tcph->syn;
+  // Check delivery completeness
   *seq = ntohl(seq_num);
   *ack = ntohl(ack_num);
+  /*---------------------------------------------------------------*/
 
+  /*------------------------ PARSE PAYLOAD ------------------------*/
   unsigned int payload_size = ntohs(iph->tot_len) - (iphdrlen + tcphdrlen);
   if (payload_size > 0 && payload_size < DATAGRAM_SIZE) {
     auto payload = std::make_unique<unsigned char[]>(payload_size);
     memcpy(payload.get(), packet.get() + (iphdrlen + tcphdrlen), payload_size);
     packet = std::move(payload);
-    /*
-    std::cout << "Payload: ";
-    std::cout.write(reinterpret_cast<const char *>(payload.get), payload_size);
-    std::cout << std::endl;
-    */
   }
+  /*--------------------------------------------------------------*/
+
+  // TODO: FIX BUGS WHERE OK PACKETS GET NO MATCH
+  /*---------------------- COMPARE CHECKSUMS ---------------------*/
+  unsigned short recv_ip_chk = iph->check;
+  iph->check = 0; // Clear the checksum field for calculation
+  unsigned short calc_ip_chk =
+      Network::checksum(reinterpret_cast<unsigned short *>(iph), iphdrlen);
+  iph->check = recv_ip_chk; // Restore the original checksum
+  bool ip_chk_match = (recv_ip_chk == calc_ip_chk) ? true : false;
+  /*---------------------- TCP CHECKSUM -------------------------*/
+  unsigned short recv_tcp_chk = tcph->check;
+  const_cast<tcphdr *>(tcph)->check = 0;
+
+  // Pseudo header to calculate checksum
+  Network::pseudo_header psh;
+  psh.src_addr = iph->saddr;
+  psh.dst_addr = iph->daddr;
+  psh.placeholder = 0;
+  psh.protocol = IPPROTO_TCP;
+  psh.tcp_length = htons(tcphdrlen + payload_size);
+
+  size_t psize = sizeof(struct pseudo_header) + tcphdrlen + payload_size;
+
+  std::vector<unsigned char> pseudogram(psize);
+  memcpy(pseudogram.data(), &psh, sizeof(Network::pseudo_header));
+  memcpy(pseudogram.data() + sizeof(Network::pseudo_header), tcph, tcphdrlen);
+  memcpy(pseudogram.data() + sizeof(Network::pseudo_header) + tcphdrlen,
+         packet.get() + iphdrlen + tcphdrlen, payload_size);
+
+  unsigned short calc_tcp_chk = Network::checksum(
+      reinterpret_cast<unsigned short *>(pseudogram.data()), psize);
+
+  tcph->check = recv_tcp_chk; // Restore the original checksum
+  bool tcp_chk_match = (recv_tcp_chk == calc_tcp_chk) ? true : false;
+  /*--------------------------------------------------------------*/
+
+  if (!tcp_chk_match && !ip_chk_match) {
+    std::cout << "Packet checksums don't match, malformed" << std::endl;
+  }
+
   std::cout << "SYN: " << syn << std::endl;
   std::cout << "SEQ number: " << *seq << std::endl;
   std::cout << "ACK number: " << *ack << std::endl;
@@ -458,14 +498,14 @@ bool Network::connect_to_server(int &client_sockfd,
   }
   std::cout << "Connection adress: " << ip << ":" << port << std::endl;
   // Try to connect to server
-  // send SYN until received SYN-ACK or TIMEOUT
+  // TODO: send SYN until received SYN-ACK or TIMEOUT
   // int wait_duration = 5; // in seconds
   std::unique_ptr<unsigned char[]> packet;
   auto response = std::make_unique<unsigned char[]>(REQUEST_SIZE);
   int packet_size{0};
   Network::create_syn_packet(&client_addr, &server_addr, packet, &packet_size);
 
-  Network::send_packet(client_sockfd, packet.get(), packet_size, &server_addr);
+  Network::send_packet(client_sockfd, packet.get(), packet_size, server_addr);
 
   Network::receive_packet(client_sockfd, response.get(), DATAGRAM_SIZE,
                           client_addr);
@@ -481,26 +521,25 @@ int Network::accept_connection(int &server_sockfd,
   // send ACK packet
   std::unique_ptr<unsigned char[]> packet;
   int packet_size{0};
-  Network::create_ack_packet(&server_addr, &client_addr, 1, 101, packet,
+  Network::create_ack_packet(&server_addr, &client_addr, 1, 1, packet,
                              &packet_size);
   char source_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(client_addr.sin_addr), source_ip, INET_ADDRSTRLEN);
   std::cout << "client address: " << source_ip << ":"
             << ntohs(client_addr.sin_port) << std::endl;
-  Network::send_packet(server_sockfd, packet.get(), packet_size, &client_addr);
+  Network::send_packet(server_sockfd, packet.get(), packet_size, client_addr);
   std::cout << "Sent SYN-ACK" << std::endl;
   return true;
 }
 
 ssize_t Network::send_packet(int sockfd, void *packet, size_t packet_len,
-                             struct sockaddr_in *dest) {
+                             struct sockaddr_in &dest) {
   ssize_t bytes_sent = sendto(sockfd, packet, packet_len, 0,
-                              reinterpret_cast<struct sockaddr *>(dest),
+                              reinterpret_cast<struct sockaddr *>(&dest),
                               sizeof(struct sockaddr_in));
   if (bytes_sent < 0) {
     std::cerr << "Error sending  packet: " << strerror(errno) << std::endl;
   }
-  // std::cout.write(reinterpret_cast<char *>(packet), packet_len);
   return bytes_sent;
 }
 
