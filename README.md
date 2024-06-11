@@ -33,8 +33,9 @@
 
 > cd clientProxyServer
 
-> make 
+> make
 
+#! run everything with SUDO privileges, they're revoked after socket creation
 > ./server_exec <server_ip> <server_port>
 
 > ./proxy_exec <proxy_ip> <proxy_port>  <server_ip> <server_port>
