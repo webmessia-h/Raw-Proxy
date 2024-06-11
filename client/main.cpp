@@ -16,13 +16,13 @@ int main(int argc, char *argv[]) {
   if (cl->connect()) {
     for (;;) {
       std::string msg;
-      std::cout << "\nMessage for server: ";
+      std::cout << "\n\nmessage for server: ";
       std::getline(std::cin, msg);
       cl->send_request(msg);
 
       std::string resp;
       cl->receive_response(resp);
-      std::cout << "\nresponse: " << resp;
+      std::cout << "\tpayload: " << resp;
     }
   }
 

@@ -19,12 +19,11 @@ int main(int argc, char *argv[]) {
   if (prx->connect()) {
     if (prx->accept()) {
       for (;;) {
-        // capable to handle user input
         std::string chng;
         prx->receive_request(chng);
+
         std::string resp;
         prx->receive_response(resp);
-        prx->send_response(resp);
       }
     }
   }

@@ -14,7 +14,7 @@ public:
   // TODO: maybe implement some authentication
   //  so the proxy ain't meaningless
   void send_request(const std::string &data);
-  void receive_response(std::string &data);
+  virtual void receive_response(std::string &data);
 
 protected:
   int client_sockfd;

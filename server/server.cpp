@@ -45,6 +45,7 @@ void Server::send_response(const std::string &data) {
   if (this->seq_num != 0)
     this->seq_num++;
   /*---------------------------*/
+  std::cout << "send to:" << clt_addr.sin_port;
   std::unique_ptr<unsigned char[]> packet;
   int packet_size{0};
   Network::create_data_packet(&srv_addr, &clt_addr, seq_num, ack_num, data,

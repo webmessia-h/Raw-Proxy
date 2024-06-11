@@ -18,10 +18,10 @@ int main(int argc, char *argv[]) {
     for (;;) {
       std::string req;
       srv->receive_request(req);
-      std::cout << "\nmessage: " << req;
+      std::cout << "\tpayload: " << req;
 
       std::string resp;
-      std::cout << "\nresponse: ";
+      std::cout << "\n\nresponse: ";
       std::getline(std::cin, resp);
       srv->send_response(resp);
     }

@@ -14,7 +14,8 @@ public:
 
   // Do the funny
   void receive_request(std::string &data) override;
-  // TODO: split this into separate methods
+  void receive_response(std::string &data) override;
+  //   TODO:  merge into one method for each client-server_socket pair
   void relay_data();
 
 private:

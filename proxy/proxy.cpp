@@ -24,38 +24,54 @@ void Proxy::receive_request(std::string &data) {
   struct tcphdr *tcph =
       reinterpret_cast<struct tcphdr *>(request.get() + iphdrlen);
   unsigned short tcphdrlen = tcph->doff * 4;
-  // change the destination port to real server port
+  // pretend we are the client
+  std::cout << "Captured request\n" << std::endl;
+  this->Server::clt_addr.sin_port = tcph->source;
+  tcph->source = Client::clt_addr.sin_port;
   tcph->dest = Client::srv_addr.sin_port;
+  iph->saddr = Client::clt_addr.sin_addr.s_addr;
+  iph->daddr = Client::srv_addr.sin_addr.s_addr;
   // Determine payload size
   unsigned int payload_size = ntohs(iph->tot_len) - (iphdrlen + tcphdrlen);
-
-  // TODO: FIX BUG WITH CHANGING PACKET PAYLOAD WHERE PAYLOAD AIN'T CHANGED
-  // AFTER THE FIRST TIME condition to change payload
-  srand((time(nullptr)));
+  // TODO: FIX BUG WITH CHANGING PACKET PAYLOAD ONLY ONCE
+  srand((time(0)));
   if (rand() % 2 == 0) {
     // change payload
     if (payload_size > 0 && payload_size < DATAGRAM_SIZE) {
-      auto payload = std::make_unique<unsigned char[]>(payload_size);
-      memcpy(payload.get(), request.get() + (iphdrlen + tcphdrlen),
-             payload_size);
       // modify packet
-      std::string nval = " hehe ԅ(≖‿≖ԅ)";
-      if (payload_size + nval.size() < DATAGRAM_SIZE) {
-        std::copy(nval.begin(), nval.end(), payload.get() + payload_size);
-        size_t npayload = payload_size + nval.size();
-        std::cout << npayload;
-
-        memcpy(request.get() + iphdrlen + tcphdrlen, payload.get(), npayload);
-        Network::send_packet(client_sockfd, request.get(),
-                             (iphdrlen + tcphdrlen + npayload),
-                             Client::srv_addr);
-      } else {
-        std::cout << "\rbuffer overflow";
-      }
+      const std::string nval = " hehe ԅ(≖‿≖ԅ)";
+      std::copy(nval.begin(), nval.end(), request.get() + iphdrlen + tcphdrlen);
+      Network::send_packet(client_sockfd, request.get(),
+                           (iphdrlen + tcphdrlen + nval.size()),
+                           Client::srv_addr);
     }
   } else {
     Network::send_packet(client_sockfd, request.get(),
                          (iphdrlen + tcphdrlen + payload_size),
                          Client::srv_addr);
   }
+  return;
+}
+
+void Proxy::receive_response(std::string &data) {
+  // idk decided to override base class method (client)
+  auto request = std::make_unique<unsigned char[]>(DATAGRAM_SIZE);
+  ssize_t bytes = Network::receive_packet(client_sockfd, request.get(),
+                                          DATAGRAM_SIZE, Client::clt_addr);
+  std::cout << "Captured response\n" << std::endl;
+  struct iphdr *iph = reinterpret_cast<struct iphdr *>(request.get());
+  unsigned short iphdrlen = iph->ihl * 4;
+  struct tcphdr *tcph =
+      reinterpret_cast<struct tcphdr *>(request.get() + iphdrlen);
+  unsigned short tcphdrlen = tcph->doff * 4;
+  unsigned int payload_size = ntohs(iph->tot_len) - (iphdrlen + tcphdrlen);
+  // pretend we are the server
+  tcph->source = Server::srv_addr.sin_port;
+  tcph->dest = Server::clt_addr.sin_port;
+  iph->saddr = Server::srv_addr.sin_addr.s_addr;
+  iph->daddr = Server::clt_addr.sin_addr.s_addr;
+  Network::send_packet(server_sockfd, request.get(),
+                       (iphdrlen + tcphdrlen + payload_size), Server::clt_addr);
+  // TODO: would be good to recalculate checksum so client doesn't panic
+  return;
 }

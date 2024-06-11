@@ -20,11 +20,11 @@ public:
 protected:
   int server_sockfd;
   struct sockaddr_in srv_addr;
+  struct sockaddr_in clt_addr;
 
 private:
   std::string ip;
   int port;
-  struct sockaddr_in clt_addr;
 
   uint32_t seq_num, ack_num = 0;
 
