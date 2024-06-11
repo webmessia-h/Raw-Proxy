@@ -34,7 +34,6 @@ void Server::receive_request(std::string &data) {
 
   Network::parse_packet(request, &seq_num, &ack_num, clt_addr);
   data.assign(reinterpret_cast<const char *>(request.get()));
-  // TODO: perform checksum comparation and log into console
 }
 
 void Server::send_response(const std::string &data) {
@@ -42,7 +41,6 @@ void Server::send_response(const std::string &data) {
   if (this->seq_num != 0)
     this->seq_num++;
   /*---------------------------*/
-  std::cout << "send to:" << clt_addr.sin_port;
   std::unique_ptr<unsigned char[]> packet;
   int packet_size{0};
   Network::create_data_packet(&srv_addr, &clt_addr, seq_num, ack_num, data,
