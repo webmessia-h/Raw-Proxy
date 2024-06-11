@@ -1,6 +1,5 @@
 #include "client.hpp"
 #include "../shared_resources/include/network.hpp"
-#include <memory>
 
 Client::Client(const std::string s_ip, const std::string ip, const int port)
     : self_ip(std::move(s_ip)), ip(std::move(ip)), port(port) {}

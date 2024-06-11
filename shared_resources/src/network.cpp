@@ -1,16 +1,7 @@
 #include "../include/network.hpp"
 
-#include <arpa/inet.h>
 #include <cerrno>
-#include <cstdint>
 #include <iostream>
-#include <memory>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 // Create connection request (SYN) packet
@@ -18,7 +9,6 @@ void Network::create_syn_packet(struct sockaddr_in *src,
                                 struct sockaddr_in *dst,
                                 std::unique_ptr<unsigned char[]> &packet,
                                 int *packet_size) {
-  // TODO: check memory operations
   uint16_t datagram_size =
       sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE;
   auto datagram = std::make_unique<unsigned char[]>(datagram_size);
@@ -113,7 +103,6 @@ void Network::create_ack_packet(struct sockaddr_in *src,
                                 uint32_t ack_seq,
                                 std::unique_ptr<unsigned char[]> &packet,
                                 int *packet_size) {
-  // TODO: check memory operations
   uint16_t datagram_size =
       sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE;
   auto datagram = std::make_unique<unsigned char[]>(datagram_size);
@@ -184,7 +173,6 @@ void Network::create_data_packet(struct sockaddr_in *src,
                                  uint32_t ack_seq, const std::string &data,
                                  std::unique_ptr<unsigned char[]> &packet,
                                  int *packet_size) {
-  // TODO: check memory operations
   uint16_t datagram_size =
       sizeof(struct iphdr) + sizeof(struct tcphdr) + data.size();
   auto datagram = std::make_unique<unsigned char[]>(datagram_size);

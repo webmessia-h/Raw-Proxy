@@ -1,9 +1,6 @@
 #include "server.hpp"
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/platform.hpp"
-#include <cerrno>
-#include <cstring>
-#include <memory>
 
 Server::Server(const std::string ip, const int port)
     : ip(std::move(ip)), port(port) {}

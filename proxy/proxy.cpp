@@ -1,5 +1,4 @@
 #include "proxy.hpp"
-#include <memory>
 
 Proxy::Proxy(const std::string &prx_ip, int prx_port, const std::string &srv_ip,
              int srv_port)
@@ -33,7 +32,6 @@ void Proxy::receive_request(std::string &data) {
   iph->daddr = Client::srv_addr.sin_addr.s_addr;
   // Determine payload size
   unsigned int payload_size = ntohs(iph->tot_len) - (iphdrlen + tcphdrlen);
-  // TODO: FIX BUG WITH CHANGING PACKET PAYLOAD ONLY ONCE
   srand((time(0)));
   if (rand() % 2 == 0) {
     // change payload

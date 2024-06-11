@@ -2,7 +2,6 @@
 #pragma once
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/platform.hpp"
-#include <netinet/in.h>
 #include <string>
 
 class Client {
@@ -27,8 +26,4 @@ private:
   int port;
 
   uint32_t seq_num, ack_num = 0;
-
-  unsigned char session_key[16];
-
-  unsigned char iv[16] = "initialvector11";
 };

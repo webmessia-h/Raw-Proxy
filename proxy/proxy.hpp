@@ -2,9 +2,6 @@
 #include "../server/server.hpp"
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/threadpool.hpp"
-#include <cerrno>
-#include <iostream>
-#include <netinet/in.h>
 
 class Proxy : public Server, public Client {
 public:
