@@ -1,7 +1,6 @@
 // client
 #pragma once
 #include "../shared_resources/include/network.hpp"
-#include "../shared_resources/include/platform.hpp"
 #include <string>
 
 class Client {

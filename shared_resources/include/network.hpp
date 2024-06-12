@@ -10,6 +10,7 @@
 #include <string.h>
 #include <string>
 #include <sys/types.h> // For socket types
+#include <unistd.h>
 #include <vector>
 
 namespace Network {
