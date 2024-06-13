@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 // #include <chrono> // for timeouts
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <netinet/in.h>
 #include <netinet/ip.h>  // For iphdr
@@ -62,7 +63,7 @@ bool bind_to_port(int port, int &sockfd, struct sockaddr_in &addr);
 /*--------------------------------------------------------------------*/
 
 /*--------------------  COMMUNICATION INTERFACE ----------------------*/
-// Read ip, tcp headers, checksum etc. // TODO: accept unique_ptr
+// Read ip, tcp headers, checksum etc.
 void parse_packet(std::unique_ptr<unsigned char[]> &packet, uint32_t *seq,
                   uint32_t *ack, struct sockaddr_in &source);
 //----------------------------------------------------------------------|

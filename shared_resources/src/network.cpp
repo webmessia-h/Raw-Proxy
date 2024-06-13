@@ -96,7 +96,6 @@ void Network::create_syn_packet(struct sockaddr_in *src,
   packet = std::move(datagram);
   *packet_size = iph->tot_len;
 }
-
 // Create ACK packet
 void Network::create_ack_packet(struct sockaddr_in *src,
                                 struct sockaddr_in *dst, uint32_t seq,
