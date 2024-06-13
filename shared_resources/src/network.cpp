@@ -78,7 +78,8 @@ void Network::create_syn_packet(struct sockaddr_in *src,
   memcpy(options + 2, &mss, sizeof(uint16_t)); // Copy MSS value to options
   options[4] = 0x04;                           // SACK Permitted Option Kind
   options[5] = 0x02;                           // SACK Permitted Option Length
-                                               // Do the same for pseudo header
+
+  // Do the same for pseudo header
   unsigned char *ps_options =
       pseudogram.data() + sizeof(struct iphdr) + sizeof(struct tcphdr);
   ps_options[0] = 0x02;
@@ -425,7 +426,7 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   bool tcp_chk_match = (recv_tcp_chk == calc_tcp_chk) ? true : false;
   /*--------------------------------------------------------------*/
 
-  if (!tcp_chk_match && !ip_chk_match) {
+  if (!tcp_chk_match || !ip_chk_match) {
     std::cout << "\tPacket checksums don't match, malformed" << std::endl;
   }
 
