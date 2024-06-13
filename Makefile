@@ -1,6 +1,6 @@
 # Define compiler and flags
-CXX = g++ -g
-CXXFLAGS = -std=c++17 -Ishared_resources/include -Wall -Wextra 
+CXX = g++
+CXXFLAGS = -std=c++17 -Ishared_resources/include 
 LDFLAGS = -Lshared_resources/lib -lshared_resources
 
 # Directories
