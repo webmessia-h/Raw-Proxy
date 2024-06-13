@@ -426,7 +426,7 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   bool tcp_chk_match = (recv_tcp_chk == calc_tcp_chk) ? true : false;
   /*--------------------------------------------------------------*/
 
-  if (!tcp_chk_match || !ip_chk_match) {
+  if (!tcp_chk_match && !ip_chk_match) {
     std::cout << "\tPacket checksums don't match, malformed" << std::endl;
   }
 
