@@ -293,7 +293,8 @@ bool Network::create_server_socket(int &server_sockfd,
   const int *val = &one;
   if (setsockopt(server_sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) ==
       -1) {
-    printf("setsockopt(IP_HDRINCL, 1) failed\n");
+    std::cerr << "setsockopt(IP_HDRINCL, 1) failed" << strerror(errno)
+              << std::endl;
     return -1;
   }
   std::cout << "\n\nSelf adress: " << ip << ":" << port << std::endl;
@@ -330,7 +331,7 @@ int Network::create_client_socket(int &client_sockfd,
   const int *val = &one;
   if (setsockopt(client_sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) ==
       -1) {
-    std::cout << "setsockopt(IP_HDRINCL, 1) failed" << std::endl;
+    std::cerr << "setsockopt(IP_HDRINCL, 1) failed" << std::endl;
     return -1;
   }
   return client_sockfd;
@@ -498,7 +499,8 @@ bool Network::connect_to_server(int &client_sockfd,
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(port);
   if (inet_pton(AF_INET, ip, &server_addr.sin_addr) != 1) {
-    std::cout << "destination IP configuration failed\n";
+    std::cerr << "destination IP configuration failed" << strerror(errno)
+              << std::endl;
     return -1;
   }
   std::cout << "\n\nConnection adress: " << ip << ":" << port << std::endl;
