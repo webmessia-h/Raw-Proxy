@@ -1,3 +1,4 @@
+#pragma once
 #include "../client/client.hpp"
 #include "../server/server.hpp"
 #include "../shared_resources/include/network.hpp"
@@ -9,7 +10,8 @@ public:
         int server_port);
   ~Proxy();
 
-  // Do the funny
+  // Do the funny (intercept packets, change source and destination adress, with
+  // 50% chance change packet payload)
   void receive_request(std::string &data) override;
   void receive_response(std::string &data) override;
   //   TODO:  merge into one method for each client-server_socket pair

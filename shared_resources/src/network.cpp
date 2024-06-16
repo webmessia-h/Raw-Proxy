@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <iostream>
+#include <netinet/tcp.h>
 #include <unistd.h>
 
 // Create connection request (SYN) packet
@@ -20,7 +21,7 @@ void Network::create_syn_packet(struct sockaddr_in *src,
       reinterpret_cast<struct tcphdr *>(datagram.get() + sizeof(struct iphdr));
 
   // Ip header configuration
-  iph->ihl = sizeof(struct iphdr) / 4;
+  iph->ihl = 5;
   iph->version = 4;
   iph->tos = 0;
   iph->tot_len = datagram_size;
@@ -68,31 +69,35 @@ void Network::create_syn_packet(struct sockaddr_in *src,
   memcpy(pseudogram.data() + sizeof(Network::pseudo_header), tcph,
          sizeof(struct tcphdr) + OPT_SIZE);
 
-  // TCP options
-  unsigned char *options =
-      datagram.get() + sizeof(struct iphdr) + sizeof(struct tcphdr);
+  /* // TCP options
+   unsigned char *options =
+       datagram.get() + sizeof(struct iphdr) + sizeof(struct tcphdr);
 
-  options[0] = 0x02;                           // MSS Option Kind
-  options[1] = 0x04;                           // MSS Option Length
-  uint16_t mss = htons(48);                    // MSS Value
-  memcpy(options + 2, &mss, sizeof(uint16_t)); // Copy MSS value to options
-  options[4] = 0x04;                           // SACK Permitted Option Kind
-  options[5] = 0x02;                           // SACK Permitted Option Length
+   options[0] = 0x02;                           // MSS Option Kind
+   options[1] = 0x04;                           // MSS Option Length
+   uint16_t mss = htons(48);                    // MSS Value
+   memcpy(options + 2, &mss, sizeof(uint16_t)); // Copy MSS value to options
+   options[4] = 0x04;                           // SACK Permitted Option Kind
+   options[5] = 0x02;                           // SACK Permitted Option Length
 
-  // Do the same for pseudo header
-  unsigned char *ps_options =
-      pseudogram.data() + sizeof(struct iphdr) + sizeof(struct tcphdr);
-  ps_options[0] = 0x02;
-  ps_options[1] = 0x04;
-  memcpy(options + 2, &mss, sizeof(uint16_t));
-  options[4] = 0x04;
-  options[5] = 0x02;
+   // Do the same for pseudo header
 
-  // calculate  checksum
-  tcph->check = Network::checksum(
+   unsigned char *ps_options = pseudogram.data() +
+                               sizeof(Network::pseudo_header) +
+                               sizeof(struct tcphdr);
+   ps_options[0] = 0x02;
+   ps_options[1] = 0x04;
+   memcpy(options + 2, &mss, sizeof(uint16_t));
+   options[4] = 0x04;
+   options[5] = 0x02;
+ */
+  uint16_t ipchk =
+      Network::checksum(reinterpret_cast<unsigned short *>(iph), iph->tot_len);
+  iph->check = htons(ipchk);
+
+  uint16_t tcpchk = Network::checksum(
       reinterpret_cast<unsigned short *>(pseudogram.data()), psize);
-  iph->check = Network::checksum(
-      reinterpret_cast<unsigned short *>(datagram.get()), iph->tot_len);
+  tcph->check = htons(tcpchk);
 
   packet = std::move(datagram);
   *packet_size = iph->tot_len;
@@ -114,7 +119,7 @@ void Network::create_ack_packet(struct sockaddr_in *src,
       reinterpret_cast<struct tcphdr *>(datagram.get() + sizeof(struct iphdr));
 
   // Ip header configuration
-  iph->ihl = sizeof(struct iphdr) / 4;
+  iph->ihl = 5;
   iph->version = 4;
   iph->tos = 0;
   iph->tot_len = datagram_size;
@@ -142,10 +147,6 @@ void Network::create_ack_packet(struct sockaddr_in *src,
   tcph->window = htons(5840); // window size
   tcph->urg_ptr = 0;
 
-  // calculate ip checksum
-  iph->check = Network::checksum(reinterpret_cast<unsigned short *>(iph),
-                                 sizeof(struct iphdr));
-
   // pseudo header to calculate checksum
   Network::pseudo_header psh;
 
@@ -153,16 +154,23 @@ void Network::create_ack_packet(struct sockaddr_in *src,
   psh.dst_addr = iph->daddr;
   psh.placeholder = 0;
   psh.protocol = IPPROTO_TCP;
-  psh.tcp_length = htons(sizeof(struct tcphdr));
+  psh.tcp_length = htons(sizeof(struct tcphdr) + OPT_SIZE);
 
-  size_t psize = sizeof(Network::pseudo_header) + sizeof(struct tcphdr);
+  size_t psize =
+      sizeof(Network::pseudo_header) + sizeof(struct tcphdr) + OPT_SIZE;
   std::vector<unsigned char> pseudogram(psize);
   memcpy(pseudogram.data(), &psh, sizeof(Network::pseudo_header));
   memcpy(pseudogram.data() + sizeof(Network::pseudo_header), tcph,
-         sizeof(struct tcphdr));
+         sizeof(struct tcphdr) + OPT_SIZE);
 
-  tcph->check = Network::checksum(
+  uint16_t ipchk =
+      Network::checksum(reinterpret_cast<unsigned short *>(iph), iph->ihl << 2);
+  iph->check = htons(ipchk);
+
+  uint16_t tcpchk = Network::checksum(
       reinterpret_cast<unsigned short *>(pseudogram.data()), psize);
+  tcph->check = htons(tcpchk);
+
   packet = std::move(datagram);
   *packet_size = iph->tot_len;
 }
@@ -204,7 +212,7 @@ void Network::create_data_packet(struct sockaddr_in *src,
   tcph->dest = dst->sin_port;
   tcph->seq = htonl(seq);
   tcph->ack_seq = htonl(ack_seq);
-  tcph->doff = sizeof(struct tcphdr) / 4; // tcp header size
+  tcph->doff = 5; // tcp header size
   tcph->fin = 0;
   tcph->syn = 0;
   tcph->rst = 0;
@@ -215,10 +223,6 @@ void Network::create_data_packet(struct sockaddr_in *src,
   tcph->window = htons(5840); // window size
   tcph->urg_ptr = 0;
 
-  // calculate ip checksum
-  iph->check = Network::checksum(reinterpret_cast<unsigned short *>(iph),
-                                 sizeof(struct iphdr));
-
   // pseudo header to calculate checksum
   Network::pseudo_header psh;
 
@@ -226,25 +230,28 @@ void Network::create_data_packet(struct sockaddr_in *src,
   psh.dst_addr = iph->daddr;
   psh.placeholder = 0;
   psh.protocol = IPPROTO_TCP;
-  psh.tcp_length = htons(sizeof(struct tcphdr));
+  psh.tcp_length = htons(sizeof(struct tcphdr) + data.size());
 
   size_t psize =
-      sizeof(struct pseudo_header) + sizeof(struct tcphdr) + data.size();
+      sizeof(Network::pseudo_header) + sizeof(struct tcphdr) + data.size();
 
   std::vector<unsigned char> pseudogram(psize);
 
-  memcpy(pseudogram.data(), &psh, sizeof(struct pseudo_header));
-
-  memcpy(pseudogram.data() + sizeof(struct pseudo_header), tcph,
+  memcpy(pseudogram.data(), &psh, sizeof(Network::pseudo_header));
+  memcpy(pseudogram.data() + sizeof(Network::pseudo_header), tcph,
          sizeof(struct tcphdr));
-
-  memcpy(pseudogram.data() + sizeof(struct pseudo_header) +
+  memcpy(pseudogram.data() + sizeof(Network::pseudo_header) +
              sizeof(struct tcphdr),
          datagram.get() + sizeof(struct iphdr) + sizeof(struct tcphdr),
          data.size());
 
-  tcph->check = Network::checksum(
+  uint16_t ipchk =
+      Network::checksum(reinterpret_cast<unsigned short *>(iph), iph->tot_len);
+  iph->check = htons(ipchk);
+
+  uint16_t tcpchk = Network::checksum(
       reinterpret_cast<unsigned short *>(pseudogram.data()), psize);
+  tcph->check = htons(tcpchk);
 
   packet = std::move(datagram);
   *packet_size = iph->tot_len;
@@ -393,15 +400,11 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   /*--------------------------------------------------------------*/
 
   /*---------------------- COMPARE CHECKSUMS ---------------------*/
-  unsigned short recv_ip_chk = iph->check;
-  iph->check = 0; // Clear the checksum field for calculation
-  unsigned short calc_ip_chk =
-      Network::checksum(reinterpret_cast<unsigned short *>(iph), iphdrlen);
-  iph->check = recv_ip_chk; // Restore the original checksum
-  bool ip_chk_match = (recv_ip_chk == calc_ip_chk) ? true : false;
-  /*---------------------- TCP CHECKSUM -------------------------*/
-  unsigned short recv_tcp_chk = tcph->check;
-  const_cast<tcphdr *>(tcph)->check = 0;
+
+  /*------------------------- TCP CHECKSUM -----------------------*/
+  uint16_t recv_tcp_chk =
+      ntohs(tcph->check); // Convert received checksum to host byte order
+  tcph->check = 0;        // Set to 0 for checksum calculation
 
   // Pseudo header to calculate checksum
   Network::pseudo_header psh;
@@ -409,9 +412,10 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   psh.dst_addr = iph->daddr;
   psh.placeholder = 0;
   psh.protocol = IPPROTO_TCP;
-  psh.tcp_length = htons(tcphdrlen + payload_size);
+  psh.tcp_length =
+      htons(tcphdrlen + payload_size); // Length of TCP header + payload
 
-  size_t psize = sizeof(struct pseudo_header) + tcphdrlen + payload_size;
+  size_t psize = sizeof(Network::pseudo_header) + tcphdrlen + payload_size;
 
   std::vector<unsigned char> pseudogram(psize);
   memcpy(pseudogram.data(), &psh, sizeof(Network::pseudo_header));
@@ -419,20 +423,33 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   memcpy(pseudogram.data() + sizeof(Network::pseudo_header) + tcphdrlen,
          packet.get() + iphdrlen + tcphdrlen, payload_size);
 
-  unsigned short calc_tcp_chk = Network::checksum(
+  uint16_t calc_tcp_chk = Network::checksum(
       reinterpret_cast<unsigned short *>(pseudogram.data()), psize);
 
-  tcph->check = recv_tcp_chk; // Restore the original checksum
-  bool tcp_chk_match = (recv_tcp_chk == calc_tcp_chk) ? true : false;
-  /*--------------------------------------------------------------*/
+  tcph->check = htons(
+      recv_tcp_chk); // Restore the original checksum in network byte order
+  bool tcp_chk_match = (recv_tcp_chk == calc_tcp_chk);
 
-  if (!tcp_chk_match && !ip_chk_match) {
+  /*------------------------- IP CHECKSUM ------------------------*/
+  uint16_t recv_ip_chk =
+      (iph->check); // Convert received checksum to host byte order
+  iph->check = 0;   // Clear the checksum field for calculation
+  uint16_t calc_ip_chk =
+      Network::checksum(reinterpret_cast<unsigned short *>(iph), iphdrlen);
+
+  iph->check =
+      (recv_ip_chk); // Restore the original checksum in network byte order
+  bool ip_chk_match = (recv_ip_chk == calc_ip_chk);
+  /*--------------------------------------------------------------*/
+  if (!tcp_chk_match || !ip_chk_match) {
     std::cout << "\tPacket checksums don't match, malformed" << std::endl;
+    std::cout << "\tip->" << recv_ip_chk << ":" << calc_ip_chk << std::endl;
+    std::cout << "\ttcp->" << recv_tcp_chk << ":" << calc_tcp_chk << std::endl;
   }
 
   std::cout << "\tSYN: " << syn << std::endl;
   std::cout << "\tSEQ: " << *seq << std::endl;
-  std::cout << "\tACK: " << *ack << std::endl;
+  std::cout << "\tACK: " << *ack << std::endl << std::endl;
 }
 
 unsigned short Network::checksum(void *buffer, unsigned len) {
@@ -445,15 +462,16 @@ unsigned short Network::checksum(void *buffer, unsigned len) {
     sum += *buf++;
 
   if (len == 1)
-    sum += *(unsigned char *)buf;
+    sum += ((*buf) & htons(0xFF00));
 
-  sum = (sum >> 16) + (sum & 0xFFFF);
-  sum += (sum >> 16);
-  result = ~sum;
-  return result;
+  while (sum >> 16) {
+    sum = (sum & 0xffff) + (sum >> 16);
+  }
+  sum = ~sum;
+  return ((unsigned short)sum);
 }
 
-// Listen for incoming connections
+// Receive and parse SYN
 bool Network::listen_client(int &server_sockfd, int numcl,
                             struct sockaddr_in &server_addr,
                             struct sockaddr_in &client_addr) {
@@ -469,7 +487,7 @@ bool Network::listen_client(int &server_sockfd, int numcl,
   return true;
 }
 
-// Make connection request
+// Send SYN wait for SYN-ACK
 bool Network::connect_to_server(int &client_sockfd,
                                 struct sockaddr_in &client_addr,
                                 struct sockaddr_in &server_addr, const char *ip,
@@ -510,7 +528,7 @@ bool Network::connect_to_server(int &client_sockfd,
   return true;
 }
 
-// Accept incoming connections
+// Send SYN-ACK
 int Network::accept_connection(int &server_sockfd,
                                struct sockaddr_in &server_addr,
                                struct sockaddr_in &client_addr) {

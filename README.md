@@ -1,4 +1,4 @@
-# Client-Proxy-Server two-way communicattion via RAW sockets
+# Client-Proxy-Server two-way communication via RAW sockets
 
 <p>
 <a href="#"><img alt="C++" src = "https://img.shields.io/badge/C%2B%2B%2017-black.svg?style=for-the-badge&logo=cplusplus&logoColor=white"></a>

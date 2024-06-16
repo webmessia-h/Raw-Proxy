@@ -30,6 +30,7 @@ void Proxy::receive_request(std::string &data) {
   tcph->dest = Client::srv_addr.sin_port;
   iph->saddr = Client::clt_addr.sin_addr.s_addr;
   iph->daddr = Client::srv_addr.sin_addr.s_addr;
+  // TODO: would be good to recalculate checksum at this point
   // Determine payload size
   unsigned int payload_size = ntohs(iph->tot_len) - (iphdrlen + tcphdrlen);
   srand((time(0)));

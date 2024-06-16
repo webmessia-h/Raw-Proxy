@@ -16,8 +16,8 @@
 
 namespace Network {
 #define DATAGRAM_SIZE 1460
-#define REQUEST_SIZE (sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE)
 #define OPT_SIZE 20
+#define REQUEST_SIZE (sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE)
 // pseudo header needed for tcp header checksum calculation
 struct pseudo_header {
   u_int32_t src_addr;

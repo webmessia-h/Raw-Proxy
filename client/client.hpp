@@ -1,7 +1,6 @@
 // client
 #pragma once
 #include "../shared_resources/include/network.hpp"
-#include <string>
 
 class Client {
 public:

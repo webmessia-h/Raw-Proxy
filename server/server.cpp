@@ -1,5 +1,4 @@
 #include "server.hpp"
-#include "../shared_resources/include/network.hpp"
 
 Server::Server(const std::string ip, const int port)
     : ip(std::move(ip)), port(port) {}
