@@ -6,10 +6,7 @@ Proxy::Proxy(const std::string &prx_ip, int prx_port, const std::string &srv_ip,
       prx_ip(std::move(prx_ip)), prx_port(prx_port), srv_ip(std::move(srv_ip)),
       srv_port(srv_port), threadPool(std::make_shared<ThreadPool>(2)) {}
 
-Proxy::~Proxy() {
-  Client::~Client();
-  Server::~Server();
-}
+Proxy::~Proxy() {}
 
 // capture packet destined to server, do the funny with packet
 void Proxy::receive_request(std::string &data) {

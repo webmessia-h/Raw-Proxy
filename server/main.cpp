@@ -26,7 +26,6 @@ int main(int argc, char *argv[]) {
       srv->send_response(resp);
     }
   }
-  srv->~Server();
   delete srv;
   srv = nullptr;
   return 0;

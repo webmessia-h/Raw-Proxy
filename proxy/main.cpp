@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  prx->~Proxy();
   delete prx;
   prx = nullptr;
   return 0;

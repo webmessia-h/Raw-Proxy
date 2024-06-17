@@ -26,7 +26,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  cl->~Client();
   delete cl;
   cl = nullptr;
   return 0;
