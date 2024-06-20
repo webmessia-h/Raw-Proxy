@@ -1,7 +1,7 @@
 # Define compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++17 -Ishared_resources/include 
-LDFLAGS = -Lshared_resources/lib -lshared_resources
+CXXFLAGS = -std=c++17 -Ishared_resources/include -g
+LDFLAGS = -Lshared_resources/lib -lshared_resources -g
 
 # Directories
 SRC_DIRS = client proxy server shared_resources/src
@@ -40,7 +40,6 @@ client_exec: $(CLIENT_OBJ) $(LIB_DIR)/libshared_resources.a
 server_exec: $(SERVER_OBJ) $(LIB_DIR)/libshared_resources.a
 	$(CXX) $(SERVER_OBJ) $(LDFLAGS) -o $@
 
-# Build proxy executable
 # Build proxy executable
 proxy_exec: $(PROXY_OBJ) $(filter-out build/client/main.o, $(CLIENT_OBJ)) $(filter-out build/server/main.o, $(SERVER_OBJ)) $(LIB_DIR)/libshared_resources.a
 	$(CXX) $(PROXY_OBJ) $(filter-out build/client/main.o, $(CLIENT_OBJ)) $(filter-out build/server/main.o, $(SERVER_OBJ)) $(LDFLAGS) -o $@

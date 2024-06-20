@@ -15,6 +15,8 @@ int main(int argc, char *argv[]) {
   srv->launch();
 
   if (srv->accept()) {
+    std::cout << "New connection" << std::endl;
+    /*
     for (;;) {
       std::string req;
       srv->receive_request(req);
@@ -25,6 +27,7 @@ int main(int argc, char *argv[]) {
       std::getline(std::cin, resp);
       srv->send_response(resp);
     }
+    */
   }
   delete srv;
   srv = nullptr;

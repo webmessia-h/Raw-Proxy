@@ -1,7 +1,7 @@
 // network
 #pragma once
 #include <arpa/inet.h>
-// #include <chrono> // for timeouts
+#include <chrono> // for timeouts
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -11,6 +11,7 @@
 #include <string.h>
 #include <string>
 #include <sys/types.h> // For socket types
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -73,7 +74,7 @@ unsigned short checksum(void *buffer, unsigned len);
 // Listen for incoming connections
 bool listen_client(int &server_sockfd, int numcl,
                    struct sockaddr_in &server_addr,
-                   struct sockaddr_in &client_addr);
+                   std::vector<struct sockaddr_in> &clients);
 //---------------------------------------------------------------------|
 // Make connection request
 // Send SYN signal and listen for SYN ACK
@@ -84,7 +85,7 @@ bool connect_to_server(int &client_sockfd, struct sockaddr_in &client_addr,
 // Accept pending connection request
 // Respond to SYN with SYN ACK
 int accept_connection(int &server_sockfd, struct sockaddr_in &server_addr,
-                      struct sockaddr_in &client_addr);
+                      std::vector<struct sockaddr_in> &clients);
 //---------------------------------------------------------------------|
 // Send raw packet with some logging if exception
 ssize_t send_packet(int sockfd, void *packet, size_t packet_len,

@@ -12,13 +12,16 @@ public:
 
   void launch();
   bool accept();
-  void send_response(const std::string &data);
-  virtual void receive_request(std::string &data);
+  virtual void handle_client(struct sockaddr_in client, int comn_sockfd);
+  void send_response();
+  virtual void receive_request(std::string &data, struct sockaddr_in &client,
+                               int &comn_sockfd);
 
 protected:
   int server_sockfd;
+  int comn_sockfd;
   struct sockaddr_in srv_addr;
-  struct sockaddr_in clt_addr;
+  std::vector<struct sockaddr_in> clients;
 
 private:
   std::string ip;
@@ -26,5 +29,5 @@ private:
 
   uint32_t seq_num, ack_num = 0;
 
-  std::shared_ptr<ThreadPool> threadPool;
+  std::shared_ptr<ThreadPool> thrd_pool;
 };

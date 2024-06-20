@@ -20,10 +20,10 @@ int main(int argc, char *argv[]) {
     if (prx->accept()) {
       for (;;) {
         std::string chng;
-        prx->receive_request(chng);
+        // prx->receive_request(chng);
 
         std::string resp;
-        prx->receive_response(resp);
+        // prx->receive_response(resp);
       }
     }
   }

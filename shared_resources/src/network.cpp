@@ -1,7 +1,10 @@
 #include "../include/network.hpp"
 
 #include <cerrno>
+#include <chrono>
+#include <cstdint>
 #include <iostream>
+#include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
 
@@ -364,18 +367,15 @@ bool Network::bind_to_port(int port, int &sockfd, struct sockaddr_in &addr) {
 void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
                            uint32_t *seq, uint32_t *ack,
                            struct sockaddr_in &source) {
-
   /*------------------------- READ PACKET -------------------------*/
   struct iphdr *iph = reinterpret_cast<struct iphdr *>(packet.get());
   unsigned short iphdrlen = iph->ihl * 4;
   struct tcphdr *tcph =
       reinterpret_cast<struct tcphdr *>(packet.get() + iphdrlen);
   unsigned short tcphdrlen = tcph->doff * 4;
-
-  // Read source port
   source.sin_port = tcph->source;
-  // Read source ip
   source.sin_addr.s_addr = iph->saddr;
+
   char source_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(source.sin_addr), source_ip, INET_ADDRSTRLEN);
   std::cout << "\n\tsource address: " << source_ip << ":" << ntohs(tcph->source)
@@ -475,16 +475,39 @@ unsigned short Network::checksum(void *buffer, unsigned len) {
 // Receive and parse SYN
 bool Network::listen_client(int &server_sockfd, int numcl,
                             struct sockaddr_in &server_addr,
-                            struct sockaddr_in &client_addr) {
+                            std::vector<struct sockaddr_in> &clients) {
   std::cout << "\n\nListening for incoming connection..." << std::endl;
   auto syn_req = std::make_unique<unsigned char[]>(REQUEST_SIZE);
   uint32_t seq_num, ack_num;
+  struct iphdr *ip_header;
+  struct tcphdr *tcp_header;
+  bool syn = false;
+
+  sockaddr_in client;
+  memset(&client, 0, sizeof(client));
+  clients.push_back(client);
+
   // TODO: Define the duration for which the loop should run
-  Network::receive_packet(server_sockfd, syn_req.get(), REQUEST_SIZE,
-                          server_addr);
-  std::cout << "\n\nSYN-RECEIVED:" << std::endl;
-  // Parse packet to acknowledge client adress
-  Network::parse_packet(syn_req, &seq_num, &ack_num, client_addr);
+  do {
+    // here by default we're receiving all packets designated to us
+    ssize_t bytes_recv = Network::receive_packet(server_sockfd, syn_req.get(),
+                                                 REQUEST_SIZE, server_addr);
+    // and here we check if it's a new client
+    // or just communication on another  thread
+    ip_header = reinterpret_cast<struct iphdr *>(syn_req.get());
+    tcp_header = reinterpret_cast<struct tcphdr *>(
+        (reinterpret_cast<char *>(syn_req.get()) + (ip_header->ihl * 4)));
+    // check if source port is equal to already known client
+    syn = (tcp_header->syn);
+  } while (!syn);
+
+  std::cout << "\n\nSYN-RECEIVED:" << syn << std::endl;
+  // Parse packet to acknowledge new client adress
+  clients.back().sin_port = (tcp_header->source);
+  clients.back().sin_addr.s_addr = (ip_header->saddr);
+
+  //  Parse packet contents
+  Network::parse_packet(syn_req, &seq_num, &ack_num, clients.back());
   return true;
 }
 
@@ -533,27 +556,40 @@ bool Network::connect_to_server(int &client_sockfd,
 // Send SYN-ACK
 int Network::accept_connection(int &server_sockfd,
                                struct sockaddr_in &server_addr,
-                               struct sockaddr_in &client_addr) {
+                               std::vector<struct sockaddr_in> &clients) {
   // send ACK packet
   std::unique_ptr<unsigned char[]> ACK;
   int packet_size{0};
   uint32_t seq_num, ack_num;
-  Network::create_ack_packet(&server_addr, &client_addr, 200, 101, ACK,
+  struct iphdr *ip_header;
+  struct tcphdr *tcp_header;
+  int src_port{0};
+  uint32_t src_ack;
+  Network::create_ack_packet(&server_addr, &clients.back(), 200, 101, ACK,
                              &packet_size);
   /*char source_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(client_addr.sin_addr), source_ip, INET_ADDRSTRLEN);
   std::cout << "\n\nclient address: " << source_ip << ":"
             << ntohs(client_addr.sin_port) << std::endl;*/
 
-  Network::send_packet(server_sockfd, ACK.get(), packet_size, client_addr);
-  std::cout << "\n\nSYN-ACK" << std::endl;
+  Network::send_packet(server_sockfd, ACK.get(), packet_size, clients.back());
+  std::cout << "\n\nSYN-ACK " << std::endl;
 
   auto established = std::make_unique<unsigned char[]>(REQUEST_SIZE);
-  Network::receive_packet(server_sockfd, established.get(), REQUEST_SIZE,
-                          server_addr);
-  std::cout << "\n\nESTABLISHED: " << std::endl;
-  Network::parse_packet(established, &seq_num, &ack_num, client_addr);
 
+  do {
+    Network::receive_packet(server_sockfd, established.get(), REQUEST_SIZE,
+                            server_addr);
+    ip_header = reinterpret_cast<struct iphdr *>(established.get());
+    tcp_header = reinterpret_cast<struct tcphdr *>(
+        (reinterpret_cast<char *>(established.get() + ip_header->ihl * 4)));
+
+    src_port = tcp_header->source;
+    src_ack = tcp_header->ack;
+  } while (src_ack != 1);
+
+  std::cout << "\n\nESTABLISHED: " << std::endl;
+  Network::parse_packet(established, &seq_num, &ack_num, clients.back());
   return true;
 }
 
