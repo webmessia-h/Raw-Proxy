@@ -1,14 +1,6 @@
 #include "../include/network.hpp"
 
-#include <cerrno>
-#include <chrono>
-#include <cstdint>
-#include <iostream>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <unistd.h>
-
-// Create connection request (SYN) packet
+// Create connection request SYN packet
 void Network::create_syn_packet(struct sockaddr_in *src,
                                 struct sockaddr_in *dst,
                                 std::unique_ptr<unsigned char[]> &packet,
@@ -364,6 +356,13 @@ bool Network::bind_to_port(int port, int &sockfd, struct sockaddr_in &addr) {
   }
 }
 
+/**
+ * @brief Write source address to passed source param
+ * check flags and sequences numbers
+ * parse payload, it will then be assigned to initial passed packet param
+ * recalculate and compare checksums
+ * log into console
+ */
 void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
                            uint32_t *seq, uint32_t *ack,
                            struct sockaddr_in &source) {
@@ -391,6 +390,8 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   *ack = ntohl(ack_num);
   /*---------------------------------------------------------------*/
 
+  //-------------------------------------------------------------------|
+
   /*------------------------ PARSE PAYLOAD ------------------------*/
   unsigned int payload_size = ntohs(iph->tot_len) - (iphdrlen + tcphdrlen);
   if (payload_size > 0 && payload_size < DATAGRAM_SIZE) {
@@ -399,6 +400,8 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
     packet = std::move(payload);
   }
   /*--------------------------------------------------------------*/
+
+  //-------------------------------------------------------------------|
 
   /*---------------------- COMPARE CHECKSUMS ---------------------*/
 
@@ -442,6 +445,8 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
       (recv_ip_chk); // Restore the original checksum in network byte order
   bool ip_chk_match = (recv_ip_chk == calc_ip_chk);
   /*--------------------------------------------------------------*/
+
+  // If either checksum don't match -> log
   if (!tcp_chk_match || !ip_chk_match) {
     std::cout << "\tPacket checksums don't match, malformed" << std::endl;
     std::cout << "\tip->" << recv_ip_chk << ":" << calc_ip_chk << std::endl;
@@ -453,6 +458,7 @@ void Network::parse_packet(std::unique_ptr<unsigned char[]> &packet,
   std::cout << "\tACK: " << *ack << std::endl << std::endl;
 }
 
+// calculate checksum
 unsigned short Network::checksum(void *buffer, unsigned len) {
   // credits: Addison Wesley: UNIX Network Programming
   unsigned short *buf = (unsigned short *)buffer;
@@ -502,6 +508,7 @@ bool Network::listen_client(int &server_sockfd, int numcl,
   } while (!syn);
 
   std::cout << "\n\nSYN-RECEIVED:" << syn << std::endl;
+
   // Parse packet to acknowledge new client adress
   clients.back().sin_port = (tcp_header->source);
   clients.back().sin_addr.s_addr = (ip_header->saddr);
@@ -529,7 +536,7 @@ bool Network::connect_to_server(int &client_sockfd,
   std::cout << "\n\nConnection adress: " << ip << ":" << port << std::endl;
   // Try to connect to server
   // TODO: send SYN until received SYN-ACK or TIMEOUT
-  // int wait_duration = 5; // in seconds
+  //  sleep_for = 5; // in seconds
   std::unique_ptr<unsigned char[]> SYN;
   auto response = std::make_unique<unsigned char[]>(REQUEST_SIZE);
   int packet_size{0};
@@ -567,6 +574,7 @@ int Network::accept_connection(int &server_sockfd,
   uint32_t src_ack;
   Network::create_ack_packet(&server_addr, &clients.back(), 200, 101, ACK,
                              &packet_size);
+
   /*char source_ip[INET_ADDRSTRLEN];
   inet_ntop(AF_INET, &(client_addr.sin_addr), source_ip, INET_ADDRSTRLEN);
   std::cout << "\n\nclient address: " << source_ip << ":"
@@ -604,6 +612,9 @@ ssize_t Network::send_packet(int sockfd, void *packet, size_t packet_len,
   return bytes_sent;
 }
 
+/**
+ * @brief Listen for all packets, filter by caller's port
+ */
 ssize_t Network::receive_packet(int sockfd, void *buffer, size_t buffer_len,
                                 struct sockaddr_in &dest) {
   struct iphdr *ip_header;

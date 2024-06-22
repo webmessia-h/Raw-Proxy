@@ -1,7 +1,7 @@
 # Define compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++17 -Ishared_resources/include -g
-LDFLAGS = -Lshared_resources/lib -lshared_resources -g
+CXXFLAGS = -std=c++17 -Ishared_resources/include
+LDFLAGS = -Lshared_resources/lib -lshared_resources
 
 # Directories
 SRC_DIRS = client proxy server shared_resources/src

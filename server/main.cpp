@@ -12,22 +12,17 @@ int main(int argc, char *argv[]) {
 
   Server *srv = new Server(ip, port);
 
-  srv->launch();
-
-  if (srv->accept()) {
-    std::cout << "New connection" << std::endl;
-    /*
-    for (;;) {
-      std::string req;
-      srv->receive_request(req);
-      std::cout << "\tpayload: " << req;
-
-      std::string resp;
-      std::cout << "\n\nresponse: ";
-      std::getline(std::cin, resp);
-      srv->send_response(resp);
+  /**
+   * @brief If successful setup then
+   * accept connections on main thread
+   * then pass them to handle_client()
+   * each new connection is handled by
+   * a thread pool
+   */
+  if (srv->launch()) {
+    if (srv->accept()) {
+      // for any additional logic change handle_client() method
     }
-    */
   }
   delete srv;
   srv = nullptr;

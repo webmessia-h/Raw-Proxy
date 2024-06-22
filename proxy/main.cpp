@@ -14,16 +14,19 @@ int main(int argc, char *argv[]) {
   int srv_port = std::stoi(argv[4]);
 
   Proxy *prx = new Proxy(prx_ip, prx_port, srv_ip, srv_port);
-  prx->launch();
 
-  if (prx->connect()) {
-    if (prx->accept()) {
-      for (;;) {
-        std::string chng;
-        // prx->receive_request(chng);
-
-        std::string resp;
-        // prx->receive_response(resp);
+  /**
+   * @brief Launch self as server
+   * then connect to server
+   * then accept connections on main thread
+   * then pass them to handle_client()
+   * each new connection is handled by
+   * a thread pool
+   */
+  if (prx->launch()) {
+    if (prx->connect()) {
+      if (prx->accept()) {
+        // for any additional logic change handle_client() method
       }
     }
   }

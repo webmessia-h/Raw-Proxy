@@ -11,22 +11,26 @@ int main(int argc, char *argv[]) {
   const std::string ip = argv[2];
   int port = std::stoi(argv[3]);
 
-  Client *cl = new Client(s_ip, ip, port);
+  Client *clt = new Client(s_ip, ip, port);
 
-  if (cl->connect()) {
+  /**
+   * @brief On successful connection // cl->SYN - srv->ACK - cl->ACK //
+   * start sending requests and receive responses in an infinite loop
+   */
+  if (clt->connect()) {
     for (;;) {
       std::string msg;
       std::cout << "\n\nmessage for server: ";
       std::getline(std::cin, msg);
-      cl->send_request(msg);
+      clt->send_request(msg);
 
       std::string resp;
-      cl->receive_response(resp);
+      clt->receive_response(resp);
       std::cout << "\tpayload: " << resp;
     }
   }
 
-  delete cl;
-  cl = nullptr;
+  delete clt;
+  clt = nullptr;
   return 0;
 }

@@ -1,6 +1,7 @@
 #include "proxy.hpp"
-#include <netinet/in.h>
 
+/**
+ * @brief instantiate self with ctors of base-classes and self_ip, self_port*/
 Proxy::Proxy(const std::string &prx_ip, int prx_port, const std::string &srv_ip,
              int srv_port)
     : Client(prx_ip, srv_ip, srv_port), Server(prx_ip, prx_port),
@@ -9,6 +10,7 @@ Proxy::Proxy(const std::string &prx_ip, int prx_port, const std::string &srv_ip,
 
 Proxy::~Proxy() {}
 
+// Same as base class method, only lower-order functions differ
 void Proxy::handle_client(struct sockaddr_in client, int comn_sockfd) {
   for (;;) {
     std::string data;
@@ -17,7 +19,17 @@ void Proxy::handle_client(struct sockaddr_in client, int comn_sockfd) {
   }
 }
 
-// capture packet destined to server, do the funny with packet
+/**
+ * @brief Receive packet from desired client (filter by source port)
+ * change source and destination address as follows:
+ *  source_port -> Proxy
+ *  dest_port -> Server
+ *  source_ip -> Proxy
+ *  dest_ip -> Server
+ * ---------------------
+ *  by random(0-1) append defined string nval to payload
+ *  send(forward) packet to Server
+ */
 void Proxy::receive_request(std::string &data, struct sockaddr_in &client,
                             int &comn_sockfd) {
 
@@ -66,6 +78,16 @@ void Proxy::receive_request(std::string &data, struct sockaddr_in &client,
   return;
 }
 
+/**
+ * @brief Receive packet from Server
+ * change destination and source address as follows:
+ * source_port -> Proxy
+ * dest_port -> Client
+ * source_ip -> Proxy
+ * dest_ip -> Client
+ * --------------------
+ * send packet
+ */
 void Proxy::receive_response(std::string &data, struct sockaddr_in &client,
                              int &comn_sockfd) {
   // idk decided to override base class method (client)

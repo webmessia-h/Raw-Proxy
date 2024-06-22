@@ -2,7 +2,6 @@
 #pragma once
 #include "../shared_resources/include/network.hpp"
 #include "../shared_resources/include/threadpool.hpp"
-#include <netinet/in.h>
 #include <string>
 
 class Server {
@@ -10,7 +9,7 @@ public:
   Server(const std::string ip, const int port);
   ~Server();
 
-  void launch();
+  bool launch();
   bool accept();
   virtual void handle_client(struct sockaddr_in client, int comn_sockfd);
   void send_response();

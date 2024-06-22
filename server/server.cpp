@@ -1,27 +1,40 @@
 #include "server.hpp"
-#include <chrono>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <thread>
 
+/**
+ * @brief instatiate self with ip address and port,
+ * shared pointer of thread pool (currently 4 threads)
+ */
 Server::Server(const std::string ip, const int port)
     : ip(std::move(ip)), port(port),
       thrd_pool(std::make_shared<ThreadPool>(4)) {}
 
 Server::~Server() { Network::close_socket(this->server_sockfd); }
 
+/**
+ * @brief Create AF_INET,SOCK_RAW,IPPROTO_TCP socket
+ * SET_SOCKOPT IP_HDRINCL // IP header included
+ * bind it to desired port
+ */
 // Initialize and set-up the server
-void Server::launch() {
+bool Server::launch() {
   if (!Network::create_server_socket(this->server_sockfd, this->srv_addr,
                                      this->ip.c_str(), this->port) ||
       !Network::bind_to_port(this->port, server_sockfd, srv_addr)) {
-    return;
+    return false;
   }
   // now we need them for each new socket :)
   // setuid(getuid()); // no need in sudo privileges anymore
-  return;
+  return true;
 }
 
+/**
+ * @brief Listen all incoming packets, filter by SYN flag
+ * append new client to list(vector) and parse packet
+ * create new server socket for communication with client.
+ * Listen for all incoming packets, filter by ACK flag
+ * enqueue handle of new connection to thread pool
+ * erase client from list, reset socket (int)
+ */
 // Listen and accept connection
 bool Server::accept() {
   for (;;) {
@@ -52,6 +65,11 @@ void Server::handle_client(struct sockaddr_in client, int comn_sockfd) {
   }
 }
 
+/**
+ * @brief Listen for all incoming packets
+ * filter by current client source port
+ * parse packet and log into console
+ */
 void Server::receive_request(std::string &data, struct sockaddr_in &client,
                              int &comn_sockfd) {
   auto request = std::make_unique<unsigned char[]>(DATAGRAM_SIZE);
@@ -73,6 +91,10 @@ void Server::receive_request(std::string &data, struct sockaddr_in &client,
   std::cout << "\tpayload: " << data;
 }
 
+/**
+ * @brief Increment sequence number
+ * send packet to desired client
+ */
 void Server::send_response() {
   /* TODO: idk if it belogs here*/
   if (this->seq_num != 0)

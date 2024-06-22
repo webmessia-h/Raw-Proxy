@@ -1,25 +1,30 @@
 // network
 #pragma once
 #include <arpa/inet.h>
-#include <chrono> // for timeouts
-#include <cstdint>
-#include <iostream>
-#include <memory>
+#include <chrono>   // for timeouts
+#include <cstdint>  // for int_*t types
+#include <iostream> // for logging
+#include <memory>   // for unique_ptr's
 #include <netinet/in.h>
 #include <netinet/ip.h>  // For iphdr
 #include <netinet/tcp.h> // For tcphdr
-#include <string.h>
+#include <string.h>      // for logging with strerror
 #include <string>
 #include <sys/types.h> // For socket types
-#include <thread>
-#include <unistd.h>
-#include <vector>
+#include <thread>      // for timeouts
+#include <unistd.h>    // POSIX
+#include <vector> // for accepting std::vector<struct sockaddr_in> as parameter
 
 namespace Network {
-#define DATAGRAM_SIZE 1460
-#define OPT_SIZE 20
-#define REQUEST_SIZE (sizeof(struct iphdr) + sizeof(struct tcphdr) + OPT_SIZE)
-// pseudo header needed for tcp header checksum calculation
+
+#define DATAGRAM_SIZE 1460 // standard packet size(length)
+#define OPT_SIZE 20        // TCP options size(length)
+
+#define REQUEST_SIZE                                                           \
+  (sizeof(struct iphdr) + sizeof(struct tcphdr) +                              \
+   OPT_SIZE) // size of typical SYN/ACK-only packet
+
+// pseudo header needed for checksum calculation
 struct pseudo_header {
   u_int32_t src_addr;
   u_int32_t dst_addr;
@@ -47,6 +52,8 @@ void create_data_packet(struct sockaddr_in *src, struct sockaddr_in *dst,
                         int *packet_size);
 /*--------------------------------------------------------------------*/
 
+//------------------------------------------------------------------------------|
+
 /*----------------  BASIC COMMUNICATEES INITIALIZATION  --------------*/
 // Create socket with some logging on exception
 int create_socket(int domain, int type, int protocol);
@@ -62,6 +69,8 @@ int create_client_socket(int &client_sockfd, struct sockaddr_in &client_addr,
 // Bind server's socket
 bool bind_to_port(int port, int &sockfd, struct sockaddr_in &addr);
 /*--------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------|
 
 /*--------------------  COMMUNICATION INTERFACE ----------------------*/
 // Read ip, tcp headers, checksum etc.
