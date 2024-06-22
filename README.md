@@ -26,7 +26,7 @@
 </ul>
 </p>
 
-<h3>Server and Proxy can handle multiple proxies/clients sumiltaneously</h3>
+<h3>Server and Proxy can handle multiple proxies/clients simultaneously</h3>
 
 <h3>usage:</h3>
 
