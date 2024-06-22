@@ -26,6 +26,8 @@
 </ul>
 </p>
 
+<h3>Server and Proxy can handle multiple proxies/clients sumiltaneously</h3>
+
 <h3>usage:</h3>
 
 ```bash
@@ -35,7 +37,7 @@
 
 > make
 
-#! run everything with SUDO privileges, they're revoked after socket creation
+#! run everything with SUDO privileges, they're revoked from client application after socket creation
 > ./server_exec <server_ip> <server_port>
 
 > ./proxy_exec <proxy_ip> <proxy_port>  <server_ip> <server_port>
