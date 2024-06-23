@@ -5,7 +5,7 @@
 class Client {
 public:
   Client(const std::string s_ip, const std::string ip, const int port);
-  ~Client();
+  virtual ~Client();
 
   bool connect();
   // TODO: maybe implement some authentication

@@ -7,7 +7,7 @@
 class Server {
 public:
   Server(const std::string ip, const int port);
-  ~Server();
+  virtual ~Server();
 
   bool launch();
   bool accept();

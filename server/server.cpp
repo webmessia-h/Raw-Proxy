@@ -48,7 +48,8 @@ bool Server::accept() {
       // handle client on other thread
       thrd_pool->enqueue(
           [this]() { handle_client(clients.back(), comn_sockfd); });
-      // wait until thread gets copy of socket and client address and then erase
+      // wait until thread gets copy of socket and client address and then
+      // erase
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       clients.pop_back();
       comn_sockfd = 0;
@@ -62,7 +63,8 @@ void Server::handle_client(struct sockaddr_in client, int comn_sockfd) {
     std::string data;
     this->receive_request(data, client, comn_sockfd);
     this->send_response();
-  }
+  };
+  return;
 }
 
 /**
@@ -96,7 +98,6 @@ void Server::receive_request(std::string &data, struct sockaddr_in &client,
  * send packet to desired client
  */
 void Server::send_response() {
-  /* TODO: idk if it belogs here*/
   if (this->seq_num != 0)
     this->seq_num++;
   /*---------------------------*/
